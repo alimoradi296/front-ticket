@@ -95,7 +95,7 @@ const AdminPanel: React.FC = () => {
 
   const loadTemplate = async (category: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/templates/${category}`);
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://back-ticket.nikflow.ir/api'}/templates/${category}`);
       if (response.ok) {
         const data = await response.json();
         setTemplates(prev => ({ ...prev, [category]: data }));
@@ -128,7 +128,7 @@ const AdminPanel: React.FC = () => {
 
   const loadBrandEssentials = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/brand-essentials');
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://back-ticket.nikflow.ir/api'}/brand-essentials`);
       if (response.ok) {
         const data = await response.json();
         setBrandEssentials(data.brand_essentials);
@@ -153,7 +153,7 @@ const AdminPanel: React.FC = () => {
   const saveTemplate = async () => {
     setSaveStatus('saving');
     try {
-      const response = await fetch(`http://localhost:8000/api/templates/${selectedCategory}`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://back-ticket.nikflow.ir/api'}/templates/${selectedCategory}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: editingTemplate })
@@ -177,7 +177,7 @@ const AdminPanel: React.FC = () => {
     setSaveStatus('saving');
     try {
       const essentials = JSON.parse(editingBrand);
-      const response = await fetch('http://localhost:8000/api/brand-essentials', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://back-ticket.nikflow.ir/api'}/brand-essentials`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ essentials })

@@ -83,7 +83,7 @@ const UserChatDemo: React.FC = () => {
     try {
       const startTime = Date.now();
       
-      const response = await fetch('http://localhost:8000/api/chat/message', {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://back-ticket.nikflow.ir/api'}/chat/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
