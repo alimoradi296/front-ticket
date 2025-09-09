@@ -4,8 +4,8 @@ WORKDIR /app
 
 # Set environment variables for React public runtime configuration
 # These values will be inlined into the client-side bundle during the build.
-ENV REACT_APP_API_URL="https://samplefrontemallsticket.nikflow.ir/api"
-ENV REACT_APP_CHAT_API_URL="https://samplefrontemallsticket.nikflow.ir/api/chat"
+ENV REACT_APP_API_URL="http://back-ticket.nikflow.ir/api"
+ENV REACT_APP_CHAT_API_URL="http://back-ticket.nikflow.ir/api/chat"
 
 # Copy package files
 COPY package*.json ./
