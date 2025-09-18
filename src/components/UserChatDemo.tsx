@@ -73,10 +73,20 @@ const UserChatDemo: React.FC = () => {
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/categories`);
       if (response.ok) {
         const data = await response.json();
-        setCategories(data.categories);
+        console.log('Categories API response (UserChatDemo):', data);
+        // Ensure categories is always an array
+        setCategories(Array.isArray(data.categories) ? data.categories : []);
       }
     } catch (error) {
       console.error('Error loading categories:', error);
+      // Set fallback default categories
+      const fallbackCategories = [
+        { id: 'store_management', name: 'store_management', persian_name: 'مدیریت فروشگاه', keywords: [], is_default: true },
+        { id: 'product_listing', name: 'product_listing', persian_name: 'لیست محصولات', keywords: [], is_default: true },
+        { id: 'order_management', name: 'order_management', persian_name: 'مدیریت سفارش', keywords: [], is_default: true },
+        { id: 'payment_issues', name: 'payment_issues', persian_name: 'مشکلات پرداخت', keywords: [], is_default: true }
+      ];
+      setCategories(fallbackCategories);
     }
   };
 
@@ -183,6 +193,10 @@ const UserChatDemo: React.FC = () => {
   };
 
   const getCategoryName = (categoryId: string) => {
+    // Ensure categories is an array before using find
+    if (!Array.isArray(categories)) {
+      return categoryId;
+    }
     const category = categories.find(c => c.id === categoryId);
     return category?.persian_name || categoryId;
   };

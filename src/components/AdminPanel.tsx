@@ -106,13 +106,27 @@ const AdminPanel: React.FC = () => {
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/categories`);
       if (response.ok) {
         const data = await response.json();
-        setCategories(data.categories);
-        if (data.categories.length > 0 && !selectedCategory) {
-          setSelectedCategory(data.categories[0].id);
+        console.log('Categories API response:', data);
+        // Ensure categories is always an array
+        const categoriesArray = Array.isArray(data.categories) ? data.categories : [];
+        setCategories(categoriesArray);
+        if (categoriesArray.length > 0 && !selectedCategory) {
+          setSelectedCategory(categoriesArray[0].id);
         }
       }
     } catch (error) {
       console.error('Error loading categories:', error);
+      // Set fallback default categories
+      const fallbackCategories = [
+        { id: 'store_management', name: 'store_management', persian_name: 'مدیریت فروشگاه', keywords: [], is_default: true },
+        { id: 'product_listing', name: 'product_listing', persian_name: 'لیست محصولات', keywords: [], is_default: true },
+        { id: 'order_management', name: 'order_management', persian_name: 'مدیریت سفارش', keywords: [], is_default: true },
+        { id: 'payment_issues', name: 'payment_issues', persian_name: 'مشکلات پرداخت', keywords: [], is_default: true }
+      ];
+      setCategories(fallbackCategories);
+      if (!selectedCategory && fallbackCategories.length > 0) {
+        setSelectedCategory(fallbackCategories[0].id);
+      }
     }
   }, [selectedCategory]);
 
@@ -160,7 +174,7 @@ const AdminPanel: React.FC = () => {
 
       if (response.ok) {
         await loadCategories();
-        if (selectedCategory === categoryId && categories.length > 0) {
+        if (selectedCategory === categoryId && Array.isArray(categories) && categories.length > 0) {
           setSelectedCategory(categories[0].id);
         }
         setSaveStatus('saved');
@@ -201,7 +215,7 @@ const AdminPanel: React.FC = () => {
         setEditingTemplate(data.content);
       } else {
         // Fallback data for demo
-        const categoryData = categories.find(c => c.id === category);
+        const categoryData = Array.isArray(categories) ? categories.find(c => c.id === category) : null;
         const fallbackTemplate = {
           category,
           persian_name: categoryData?.persian_name || category,
@@ -374,7 +388,7 @@ const AdminPanel: React.FC = () => {
                     دسته‌بندی‌ها:
                   </Typography>
                   <List dense>
-                    {categories.map((category) => (
+                    {Array.isArray(categories) && categories.map((category) => (
                       <ListItem key={category.id} disablePadding>
                         <ListItemButton
                           selected={selectedCategory === category.id}
@@ -421,7 +435,7 @@ const AdminPanel: React.FC = () => {
                 <Paper elevation={1} sx={{ p: 3 }}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
                     <Typography variant="h6" fontWeight="bold">
-                      ویرایش الگوی: {categories.find(c => c.id === selectedCategory)?.persian_name}
+                      ویرایش الگوی: {Array.isArray(categories) ? categories.find(c => c.id === selectedCategory)?.persian_name : selectedCategory}
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <IconButton onClick={resetTemplate} color="default">
@@ -462,7 +476,7 @@ const AdminPanel: React.FC = () => {
                     </Typography>
                     <Typography variant="body2">
                       با تغییر این الگو، تمام پاسخ‌های مربوط به دسته‌بندی "
-                      {categories.find(c => c.id === selectedCategory)?.persian_name}
+                      {Array.isArray(categories) ? categories.find(c => c.id === selectedCategory)?.persian_name : selectedCategory}
                       " به شکل جدید نمایش داده خواهند شد.
                     </Typography>
                   </Alert>
@@ -572,7 +586,7 @@ const AdminPanel: React.FC = () => {
 
                     {/* Category List */}
                     <Stack spacing={2}>
-                      {categories.map((category) => (
+                      {Array.isArray(categories) && categories.map((category) => (
                         <Card key={category.id} variant="outlined">
                           <CardContent>
                             <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -656,18 +670,18 @@ const AdminPanel: React.FC = () => {
                     <Stack spacing={1}>
                       <Stack direction="row" justifyContent="space-between">
                         <Typography variant="body2">کل دسته‌بندی‌ها:</Typography>
-                        <Typography variant="body2" fontWeight="bold">{categories.length}</Typography>
+                        <Typography variant="body2" fontWeight="bold">{Array.isArray(categories) ? categories.length : 0}</Typography>
                       </Stack>
                       <Stack direction="row" justifyContent="space-between">
                         <Typography variant="body2">دسته‌بندی‌های پیش‌فرض:</Typography>
                         <Typography variant="body2" fontWeight="bold">
-                          {categories.filter(c => c.is_default).length}
+                          {Array.isArray(categories) ? categories.filter(c => c.is_default).length : 0}
                         </Typography>
                       </Stack>
                       <Stack direction="row" justifyContent="space-between">
                         <Typography variant="body2">دسته‌بندی‌های سفارشی:</Typography>
                         <Typography variant="body2" fontWeight="bold">
-                          {categories.filter(c => !c.is_default).length}
+                          {Array.isArray(categories) ? categories.filter(c => !c.is_default).length : 0}
                         </Typography>
                       </Stack>
                     </Stack>
