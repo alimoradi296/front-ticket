@@ -33,6 +33,15 @@ interface Message {
   processingTime?: number;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  persian_name: string;
+  description?: string;
+  keywords: string[];
+  is_default: boolean;
+}
+
 const UserChatDemo: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -45,6 +54,7 @@ const UserChatDemo: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const suggestedQuestions = [
@@ -58,9 +68,25 @@ const UserChatDemo: React.FC = () => {
     'چطور فروشگاهم را بهینه کنم؟'
   ];
 
+  const loadCategories = async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/categories`);
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.categories);
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -156,18 +182,9 @@ const UserChatDemo: React.FC = () => {
     return date.toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const getCategoryName = (category: string) => {
-    const categories: { [key: string]: string } = {
-      'store_management': 'مدیریت فروشگاه',
-      'product_listing': 'لیست محصولات',
-      'order_management': 'مدیریت سفارش',
-      'payment_issues': 'مشکلات پرداخت',
-      'marketplace_policies': 'سیاست‌های مارکت‌پلیس',
-      'account_issues': 'مشکلات حساب',
-      'technical_support': 'پشتیبانی فنی',
-      'commission_revenue': 'کمیسیون و درآمد'
-    };
-    return categories[category] || category;
+  const getCategoryName = (categoryId: string) => {
+    const category = categories.find(c => c.id === categoryId);
+    return category?.persian_name || categoryId;
   };
 
   return (

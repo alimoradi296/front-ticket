@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -18,14 +18,12 @@ import {
   Snackbar,
   Chip,
   LinearProgress,
-  Divider,
   Container,
   Stack,
   IconButton,
   Grid
 } from '@mui/material';
 import {
-  Edit as EditIcon,
   Save as SaveIcon,
   Refresh as RefreshIcon,
   Store as StoreIcon,
@@ -38,7 +36,10 @@ import {
   AttachMoney as MoneyIcon,
   Analytics as AnalyticsIcon,
   Palette as PaletteIcon,
-  Description as DescriptionIcon
+  Description as DescriptionIcon,
+  Category as CategoryIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 
 interface Template {
@@ -56,6 +57,17 @@ interface BrandEssentials {
   response_guidelines: string[];
 }
 
+interface Category {
+  id: string;
+  name: string;
+  persian_name: string;
+  description?: string;
+  keywords: string[];
+  is_default: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState('store_management');
@@ -65,17 +77,104 @@ const AdminPanel: React.FC = () => {
   const [editingBrand, setEditingBrand] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [newCategory, setNewCategory] = useState({
+    name: '',
+    persian_name: '',
+    description: '',
+    keywords: ''
+  });
+  const [showAddForm, setShowAddForm] = useState(false);
 
-  const categories = [
-    { key: 'store_management', name: 'مدیریت فروشگاه', icon: <StoreIcon /> },
-    { key: 'product_listing', name: 'لیست محصولات', icon: <InventoryIcon /> },
-    { key: 'order_management', name: 'مدیریت سفارش', icon: <AssignmentIcon /> },
-    { key: 'payment_issues', name: 'مشکلات پرداخت', icon: <PaymentIcon /> },
-    { key: 'marketplace_policies', name: 'سیاست‌های مارکت‌پلیس', icon: <PolicyIcon /> },
-    { key: 'account_issues', name: 'مشکلات حساب', icon: <AccountIcon /> },
-    { key: 'technical_support', name: 'پشتیبانی فنی', icon: <BuildIcon /> },
-    { key: 'commission_revenue', name: 'کمیسیون و درآمد', icon: <MoneyIcon /> }
-  ];
+  const defaultCategoryIcons: { [key: string]: React.ReactElement } = {
+    'store_management': <StoreIcon />,
+    'product_listing': <InventoryIcon />,
+    'order_management': <AssignmentIcon />,
+    'payment_issues': <PaymentIcon />,
+    'marketplace_policies': <PolicyIcon />,
+    'account_issues': <AccountIcon />,
+    'technical_support': <BuildIcon />,
+    'commission_revenue': <MoneyIcon />
+  };
+
+  const getCategoryIcon = (categoryId: string) => {
+    return defaultCategoryIcons[categoryId] || <CategoryIcon />;
+  };
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/categories`);
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(data.categories);
+        if (data.categories.length > 0 && !selectedCategory) {
+          setSelectedCategory(data.categories[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  }, [selectedCategory]);
+
+  const createCategory = async () => {
+    if (!newCategory.name || !newCategory.persian_name) return;
+    
+    setSaveStatus('saving');
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCategory.name,
+          persian_name: newCategory.persian_name,
+          description: newCategory.description,
+          keywords: newCategory.keywords.split(',').map(k => k.trim()).filter(k => k.length > 0)
+        })
+      });
+
+      if (response.ok) {
+        await loadCategories();
+        setNewCategory({ name: '', persian_name: '', description: '', keywords: '' });
+        setShowAddForm(false);
+        setSaveStatus('saved');
+        setSnackbarOpen(true);
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } else {
+        throw new Error('Create failed');
+      }
+    } catch (error) {
+      console.error('Error creating category:', error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }
+  };
+
+  const deleteCategory = async (categoryId: string) => {
+    if (!window.confirm('آیا از حذف این دسته‌بندی اطمینان دارید؟')) return;
+    
+    setSaveStatus('saving');
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/categories/${categoryId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        await loadCategories();
+        if (selectedCategory === categoryId && categories.length > 0) {
+          setSelectedCategory(categories[0].id);
+        }
+        setSaveStatus('saved');
+        setSnackbarOpen(true);
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } else {
+        throw new Error('Delete failed');
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }
+  };
 
   const mockAnalytics = {
     totalQuestions: 2847,
@@ -93,7 +192,7 @@ const AdminPanel: React.FC = () => {
     ]
   };
 
-  const loadTemplate = async (category: string) => {
+  const loadTemplate = useCallback(async (category: string) => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/templates/${category}`);
       if (response.ok) {
@@ -102,11 +201,12 @@ const AdminPanel: React.FC = () => {
         setEditingTemplate(data.content);
       } else {
         // Fallback data for demo
+        const categoryData = categories.find(c => c.id === category);
         const fallbackTemplate = {
           category,
-          persian_name: categories.find(c => c.key === category)?.name || category,
-          content: `# الگوی پاسخ برای ${categories.find(c => c.key === category)?.name}\n\nاین یک الگوی نمونه است. شما می‌توانید آن را ویرایش کنید.\n\n## راهنمایی‌ها:\n- پاسخ‌ها باید مفید و واضح باشند\n- از زبان محترمانه استفاده کنید\n- مراحل را به صورت شماره‌گذاری شده ارائه دهید`,
-          keywords: ['نمونه', 'تست']
+          persian_name: categoryData?.persian_name || category,
+          content: `# الگوی پاسخ برای ${categoryData?.persian_name || category}\n\nاین یک الگوی نمونه است. شما می‌توانید آن را ویرایش کنید.\n\n## راهنمایی‌ها:\n- پاسخ‌ها باید مفید و واضح باشند\n- از زبان محترمانه استفاده کنید\n- مراحل را به صورت شماره‌گذاری شده ارائه دهید`,
+          keywords: categoryData?.keywords || ['نمونه', 'تست']
         };
         setTemplates(prev => ({ ...prev, [category]: fallbackTemplate }));
         setEditingTemplate(fallbackTemplate.content);
@@ -114,11 +214,17 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('Error loading template:', error);
     }
-  };
+  }, [categories]);
 
   useEffect(() => {
-    loadTemplate(selectedCategory);
-  }, [selectedCategory]);
+    loadCategories();
+  }, [loadCategories]);
+
+  useEffect(() => {
+    if (selectedCategory) {
+      loadTemplate(selectedCategory);
+    }
+  }, [selectedCategory, loadTemplate]);
 
   useEffect(() => {
     if (activeTab === 1) {
@@ -237,6 +343,12 @@ const AdminPanel: React.FC = () => {
               sx={{ fontWeight: 'bold' }} 
             />
             <Tab 
+              label="مدیریت دسته‌بندی‌ها" 
+              icon={<CategoryIcon />} 
+              iconPosition="start"
+              sx={{ fontWeight: 'bold' }} 
+            />
+            <Tab 
               label="صدای برند" 
               icon={<PaletteIcon />} 
               iconPosition="start"
@@ -263,10 +375,10 @@ const AdminPanel: React.FC = () => {
                   </Typography>
                   <List dense>
                     {categories.map((category) => (
-                      <ListItem key={category.key} disablePadding>
+                      <ListItem key={category.id} disablePadding>
                         <ListItemButton
-                          selected={selectedCategory === category.key}
-                          onClick={() => setSelectedCategory(category.key)}
+                          selected={selectedCategory === category.id}
+                          onClick={() => setSelectedCategory(category.id)}
                           sx={{
                             borderRadius: 2,
                             mb: 0.5,
@@ -280,10 +392,10 @@ const AdminPanel: React.FC = () => {
                           }}
                         >
                           <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
-                            {category.icon}
+                            {getCategoryIcon(category.id)}
                           </ListItemIcon>
                           <ListItemText 
-                            primary={category.name} 
+                            primary={category.persian_name} 
                             primaryTypographyProps={{ fontSize: '0.9rem' }}
                           />
                         </ListItemButton>
@@ -309,7 +421,7 @@ const AdminPanel: React.FC = () => {
                 <Paper elevation={1} sx={{ p: 3 }}>
                   <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
                     <Typography variant="h6" fontWeight="bold">
-                      ویرایش الگوی: {categories.find(c => c.key === selectedCategory)?.name}
+                      ویرایش الگوی: {categories.find(c => c.id === selectedCategory)?.persian_name}
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <IconButton onClick={resetTemplate} color="default">
@@ -350,7 +462,7 @@ const AdminPanel: React.FC = () => {
                     </Typography>
                     <Typography variant="body2">
                       با تغییر این الگو، تمام پاسخ‌های مربوط به دسته‌بندی "
-                      {categories.find(c => c.key === selectedCategory)?.name}
+                      {categories.find(c => c.id === selectedCategory)?.persian_name}
                       " به شکل جدید نمایش داده خواهند شد.
                     </Typography>
                   </Alert>
@@ -359,8 +471,214 @@ const AdminPanel: React.FC = () => {
             </Grid>
           )}
 
-          {/* Brand Voice Tab */}
+          {/* Category Management Tab */}
           {activeTab === 1 && (
+            <Box>
+              <Grid container spacing={3}>
+                {/* Category List */}
+                <Grid size={{ xs: 12, md: 8 }}>
+                  <Paper elevation={1} sx={{ p: 3 }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
+                      <Typography variant="h6" fontWeight="bold">
+                        مدیریت دسته‌بندی‌ها
+                      </Typography>
+                      <Button
+                        onClick={() => setShowAddForm(!showAddForm)}
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        color="primary"
+                      >
+                        افزودن دسته‌بندی جدید
+                      </Button>
+                    </Stack>
+
+                    {/* Add Category Form */}
+                    {showAddForm && (
+                      <Paper variant="outlined" sx={{ p: 3, mb: 3, bgcolor: 'grey.50' }}>
+                        <Typography variant="h6" gutterBottom>
+                          افزودن دسته‌بندی جدید:
+                        </Typography>
+                        <Grid container spacing={2}>
+                          <Grid size={{ xs: 12, md: 6 }}>
+                            <TextField
+                              fullWidth
+                              label="نام انگلیسی"
+                              value={newCategory.name}
+                              onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="shipping_logistics"
+                              variant="outlined"
+                              size="small"
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12, md: 6 }}>
+                            <TextField
+                              fullWidth
+                              label="نام فارسی"
+                              value={newCategory.persian_name}
+                              onChange={(e) => setNewCategory(prev => ({ ...prev, persian_name: e.target.value }))}
+                              placeholder="لجستیک و ارسال"
+                              variant="outlined"
+                              size="small"
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12 }}>
+                            <TextField
+                              fullWidth
+                              label="توضیحات (اختیاری)"
+                              value={newCategory.description}
+                              onChange={(e) => setNewCategory(prev => ({ ...prev, description: e.target.value }))}
+                              placeholder="مسائل مربوط به ارسال، حمل و نقل، و تحویل کالا"
+                              variant="outlined"
+                              size="small"
+                              multiline
+                              rows={2}
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12 }}>
+                            <TextField
+                              fullWidth
+                              label="کلمات کلیدی (با کاما جدا کنید)"
+                              value={newCategory.keywords}
+                              onChange={(e) => setNewCategory(prev => ({ ...prev, keywords: e.target.value }))}
+                              placeholder="ارسال، تحویل، پست، باربری، حمل"
+                              variant="outlined"
+                              size="small"
+                            />
+                          </Grid>
+                          <Grid size={{ xs: 12 }}>
+                            <Stack direction="row" spacing={2}>
+                              <Button
+                                onClick={createCategory}
+                                disabled={saveStatus === 'saving' || !newCategory.name || !newCategory.persian_name}
+                                variant="contained"
+                                startIcon={<SaveIcon />}
+                              >
+                                {saveStatus === 'saving' ? 'در حال ذخیره...' : 'ایجاد دسته‌بندی'}
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  setShowAddForm(false);
+                                  setNewCategory({ name: '', persian_name: '', description: '', keywords: '' });
+                                }}
+                                variant="outlined"
+                              >
+                                انصراف
+                              </Button>
+                            </Stack>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    )}
+
+                    {/* Category List */}
+                    <Stack spacing={2}>
+                      {categories.map((category) => (
+                        <Card key={category.id} variant="outlined">
+                          <CardContent>
+                            <Stack direction="row" alignItems="center" justifyContent="space-between">
+                              <Stack direction="row" alignItems="center" spacing={2}>
+                                {getCategoryIcon(category.id)}
+                                <Box>
+                                  <Typography variant="h6" fontWeight="bold">
+                                    {category.persian_name}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {category.name}
+                                  </Typography>
+                                  {category.description && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                      {category.description}
+                                    </Typography>
+                                  )}
+                                  <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+                                    {category.keywords.map((keyword, index) => (
+                                      <Chip key={index} label={keyword} size="small" variant="outlined" />
+                                    ))}
+                                  </Stack>
+                                </Box>
+                              </Stack>
+                              <Stack direction="row" spacing={1}>
+                                {category.is_default && (
+                                  <Chip label="پیش‌فرض" size="small" color="primary" />
+                                )}
+                                {!category.is_default && (
+                                  <IconButton
+                                    onClick={() => deleteCategory(category.id)}
+                                    color="error"
+                                    size="small"
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                )}
+                              </Stack>
+                            </Stack>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </Stack>
+                  </Paper>
+                </Grid>
+
+                {/* Category Info */}
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <Paper elevation={1} sx={{ p: 3 }}>
+                    <Typography variant="h6" fontWeight="bold" gutterBottom>
+                      راهنمای دسته‌بندی‌ها
+                    </Typography>
+                    
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight="bold">
+                        💡 نکات مهم:
+                      </Typography>
+                      <Box component="ul" sx={{ m: 0, pl: 2, fontSize: '0.875rem' }}>
+                        <li>دسته‌بندی‌های پیش‌فرض قابل حذف نیستند</li>
+                        <li>هر دسته‌بندی جدید فایل الگوی مخصوص خود را دارد</li>
+                        <li>کلمات کلیدی برای تشخیص خودکار استفاده می‌شوند</li>
+                        <li>تغییرات فوراً در سیستم طبقه‌بندی اعمال می‌شوند</li>
+                      </Box>
+                    </Alert>
+
+                    <Alert severity="success" sx={{ mb: 2 }}>
+                      <Typography variant="body2" fontWeight="bold">
+                        ✅ مزایای دسته‌بندی پویا:
+                      </Typography>
+                      <Box component="ul" sx={{ m: 0, pl: 2, fontSize: '0.875rem' }}>
+                        <li>انعطاف‌پذیری کامل در اضافه کردن موضوعات جدید</li>
+                        <li>بهبود دقت طبقه‌بندی با کلمات کلیدی</li>
+                        <li>مدیریت ساده الگوها برای هر دسته</li>
+                        <li>قابلیت تطبیق با نیازهای کسب‌وکار</li>
+                      </Box>
+                    </Alert>
+
+                    <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mt: 3 }}>
+                      آمار دسته‌بندی‌ها:
+                    </Typography>
+                    <Stack spacing={1}>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2">کل دسته‌بندی‌ها:</Typography>
+                        <Typography variant="body2" fontWeight="bold">{categories.length}</Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2">دسته‌بندی‌های پیش‌فرض:</Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {categories.filter(c => c.is_default).length}
+                        </Typography>
+                      </Stack>
+                      <Stack direction="row" justifyContent="space-between">
+                        <Typography variant="body2">دسته‌بندی‌های سفارشی:</Typography>
+                        <Typography variant="body2" fontWeight="bold">
+                          {categories.filter(c => !c.is_default).length}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {/* Brand Voice Tab */}
+          {activeTab === 2 && (
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Paper elevation={1} sx={{ p: 3 }}>
@@ -484,7 +802,7 @@ const AdminPanel: React.FC = () => {
           )}
 
           {/* Analytics Tab */}
-          {activeTab === 2 && (
+          {activeTab === 3 && (
             <Box>
               {/* Stats Cards */}
               <Grid container spacing={3} sx={{ mb: 4 }}>
