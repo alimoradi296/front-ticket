@@ -106,9 +106,22 @@ const AdminPanel: React.FC = () => {
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/categories`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Categories API response:', data);
-        // Ensure categories is always an array
-        const categoriesArray = Array.isArray(data.categories) ? data.categories : [];
+        // Convert categories object to array format
+        let categoriesArray = [];
+        if (Array.isArray(data.categories)) {
+          categoriesArray = data.categories;
+        } else if (data.categories && typeof data.categories === 'object') {
+          // Convert object to array format
+          categoriesArray = Object.entries(data.categories).map(([id, category]: [string, any]) => ({
+            id,
+            name: id,
+            persian_name: category.persian_name,
+            description: category.description,
+            keywords: category.keywords || [],
+            is_default: category.is_default || false
+          }));
+        }
+        
         setCategories(categoriesArray);
         if (categoriesArray.length > 0 && !selectedCategory) {
           setSelectedCategory(categoriesArray[0].id);
@@ -139,10 +152,11 @@ const AdminPanel: React.FC = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: newCategory.name,
+          category_id: newCategory.name,
           persian_name: newCategory.persian_name,
           description: newCategory.description,
-          keywords: newCategory.keywords.split(',').map(k => k.trim()).filter(k => k.length > 0)
+          keywords: newCategory.keywords.split(',').map(k => k.trim()).filter(k => k.length > 0),
+          template_content: `# الگوی پاسخ برای ${newCategory.persian_name}\n\nاین یک الگوی پیش‌فرض است. لطفاً آن را ویرایش کنید.\n\n## راهنمایی‌ها:\n- پاسخ‌ها باید مفید و واضح باشند\n- از زبان محترمانه استفاده کنید\n- مراحل را به صورت شماره‌گذاری شده ارائه دهید`
         })
       });
 
@@ -584,9 +598,17 @@ const AdminPanel: React.FC = () => {
                       </Paper>
                     )}
 
+
                     {/* Category List */}
                     <Stack spacing={2}>
-                      {Array.isArray(categories) && categories.map((category) => (
+                      {!Array.isArray(categories) || categories.length === 0 ? (
+                        <Alert severity="warning">
+                          <Typography variant="body2">
+                            هیچ دسته‌بندی یافت نشد. در حال بارگذاری...
+                          </Typography>
+                        </Alert>
+                      ) : (
+                        categories.map((category) => (
                         <Card key={category.id} variant="outlined">
                           <CardContent>
                             <Stack direction="row" alignItems="center" justifyContent="space-between">
@@ -605,7 +627,7 @@ const AdminPanel: React.FC = () => {
                                     </Typography>
                                   )}
                                   <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                                    {category.keywords.map((keyword, index) => (
+                                    {Array.isArray(category.keywords) && category.keywords.map((keyword, index) => (
                                       <Chip key={index} label={keyword} size="small" variant="outlined" />
                                     ))}
                                   </Stack>
@@ -628,7 +650,8 @@ const AdminPanel: React.FC = () => {
                             </Stack>
                           </CardContent>
                         </Card>
-                      ))}
+                        ))
+                      )}
                     </Stack>
                   </Paper>
                 </Grid>

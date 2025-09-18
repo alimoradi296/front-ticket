@@ -73,9 +73,23 @@ const UserChatDemo: React.FC = () => {
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/categories`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Categories API response (UserChatDemo):', data);
-        // Ensure categories is always an array
-        setCategories(Array.isArray(data.categories) ? data.categories : []);
+        // Convert categories object to array format
+        let categoriesArray = [];
+        if (Array.isArray(data.categories)) {
+          categoriesArray = data.categories;
+        } else if (data.categories && typeof data.categories === 'object') {
+          // Convert object to array format
+          categoriesArray = Object.entries(data.categories).map(([id, category]: [string, any]) => ({
+            id,
+            name: id,
+            persian_name: category.persian_name,
+            description: category.description,
+            keywords: category.keywords || [],
+            is_default: category.is_default || false
+          }));
+        }
+        
+        setCategories(categoriesArray);
       }
     } catch (error) {
       console.error('Error loading categories:', error);
