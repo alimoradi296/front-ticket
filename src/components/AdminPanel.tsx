@@ -178,7 +178,7 @@ const AdminPanel: React.FC = () => {
   };
 
   const deleteCategory = async (categoryId: string) => {
-    if (!window.confirm('آیا از حذف این دسته‌بندی اطمینان دارید؟')) return;
+    if (!window.confirm('آیا از حذف این موضوع اطمینان دارید؟')) return;
     
     setSaveStatus('saving');
     try {
@@ -216,7 +216,7 @@ const AdminPanel: React.FC = () => {
       { name: 'پشتیبانی فنی', count: 312, percentage: 11 },
       { name: 'مشکلات حساب', count: 267, percentage: 9 },
       { name: 'کمیسیون و درآمد', count: 198, percentage: 7 },
-      { name: 'سیاست‌های مارکت‌پلیس', count: 102, percentage: 4 }
+      { name: 'سیاست‌های ایمالز', count: 102, percentage: 4 }
     ]
   };
 
@@ -371,7 +371,7 @@ const AdminPanel: React.FC = () => {
               sx={{ fontWeight: 'bold' }} 
             />
             <Tab 
-              label="مدیریت دسته‌بندی‌ها" 
+              label="مدیریت موضوعات (سوال و جواب)" 
               icon={<CategoryIcon />} 
               iconPosition="start"
               sx={{ fontWeight: 'bold' }} 
@@ -399,7 +399,7 @@ const AdminPanel: React.FC = () => {
               <Grid size={{ xs: 12, md: 3 }}>
                 <Paper elevation={1} sx={{ p: 2 }}>
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
-                    دسته‌بندی‌ها:
+                    موضوعات:
                   </Typography>
                   <List dense>
                     {Array.isArray(categories) && categories.map((category) => (
@@ -489,7 +489,7 @@ const AdminPanel: React.FC = () => {
                       پیش‌نمایش تأثیر:
                     </Typography>
                     <Typography variant="body2">
-                      با تغییر این الگو، تمام پاسخ‌های مربوط به دسته‌بندی "
+                      با تغییر این الگو، تمام پاسخ‌های مربوط به موضوع "
                       {Array.isArray(categories) ? categories.find(c => c.id === selectedCategory)?.persian_name : selectedCategory}
                       " به شکل جدید نمایش داده خواهند شد.
                     </Typography>
@@ -508,7 +508,7 @@ const AdminPanel: React.FC = () => {
                   <Paper elevation={1} sx={{ p: 3 }}>
                     <Stack direction="row" alignItems="center" justifyContent="space-between" mb={3}>
                       <Typography variant="h6" fontWeight="bold">
-                        مدیریت دسته‌بندی‌ها
+                        مدیریت موضوعات (سوال و جواب)
                       </Typography>
                       <Button
                         onClick={() => setShowAddForm(!showAddForm)}
@@ -516,7 +516,7 @@ const AdminPanel: React.FC = () => {
                         startIcon={<AddIcon />}
                         color="primary"
                       >
-                        افزودن دسته‌بندی جدید
+                        افزودن موضوع جدید
                       </Button>
                     </Stack>
 
@@ -524,7 +524,7 @@ const AdminPanel: React.FC = () => {
                     {showAddForm && (
                       <Paper variant="outlined" sx={{ p: 3, mb: 3, bgcolor: 'grey.50' }}>
                         <Typography variant="h6" gutterBottom>
-                          افزودن دسته‌بندی جدید:
+                          افزودن موضوع جدید:
                         </Typography>
                         <Grid container spacing={2}>
                           <Grid size={{ xs: 12, md: 6 }}>
@@ -581,7 +581,7 @@ const AdminPanel: React.FC = () => {
                                 variant="contained"
                                 startIcon={<SaveIcon />}
                               >
-                                {saveStatus === 'saving' ? 'در حال ذخیره...' : 'ایجاد دسته‌بندی'}
+                                {saveStatus === 'saving' ? 'در حال ذخیره...' : 'ایجاد موضوع'}
                               </Button>
                               <Button
                                 onClick={() => {
@@ -604,7 +604,7 @@ const AdminPanel: React.FC = () => {
                       {!Array.isArray(categories) || categories.length === 0 ? (
                         <Alert severity="warning">
                           <Typography variant="body2">
-                            هیچ دسته‌بندی یافت نشد. در حال بارگذاری...
+                            هیچ موضوع یافت نشد. در حال بارگذاری...
                           </Typography>
                         </Alert>
                       ) : (
@@ -660,7 +660,7 @@ const AdminPanel: React.FC = () => {
                 <Grid size={{ xs: 12, md: 4 }}>
                   <Paper elevation={1} sx={{ p: 3 }}>
                     <Typography variant="h6" fontWeight="bold" gutterBottom>
-                      راهنمای دسته‌بندی‌ها
+                      راهنمای موضوع‌ها
                     </Typography>
                     
                     <Alert severity="info" sx={{ mb: 2 }}>
@@ -668,8 +668,8 @@ const AdminPanel: React.FC = () => {
                         💡 نکات مهم:
                       </Typography>
                       <Box component="ul" sx={{ m: 0, pl: 2, fontSize: '0.875rem' }}>
-                        <li>دسته‌بندی‌های پیش‌فرض قابل حذف نیستند</li>
-                        <li>هر دسته‌بندی جدید فایل الگوی مخصوص خود را دارد</li>
+                        <li>موضوع‌های پیش‌فرض قابل حذف نیستند</li>
+                        <li>هر موضوع جدید فایل الگوی مخصوص خود را دارد</li>
                         <li>کلمات کلیدی برای تشخیص خودکار استفاده می‌شوند</li>
                         <li>تغییرات فوراً در سیستم طبقه‌بندی اعمال می‌شوند</li>
                       </Box>
@@ -677,32 +677,32 @@ const AdminPanel: React.FC = () => {
 
                     <Alert severity="success" sx={{ mb: 2 }}>
                       <Typography variant="body2" fontWeight="bold">
-                        ✅ مزایای دسته‌بندی پویا:
+                        ✅ مزایای موضوع پویا:
                       </Typography>
                       <Box component="ul" sx={{ m: 0, pl: 2, fontSize: '0.875rem' }}>
                         <li>انعطاف‌پذیری کامل در اضافه کردن موضوعات جدید</li>
                         <li>بهبود دقت طبقه‌بندی با کلمات کلیدی</li>
-                        <li>مدیریت ساده الگوها برای هر دسته</li>
+                        <li>مدیریت ساده الگوها برای هر موضوع</li>
                         <li>قابلیت تطبیق با نیازهای کسب‌وکار</li>
                       </Box>
                     </Alert>
 
                     <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ mt: 3 }}>
-                      آمار دسته‌بندی‌ها:
+                      آمار موضوع‌ها:
                     </Typography>
                     <Stack spacing={1}>
                       <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2">کل دسته‌بندی‌ها:</Typography>
+                        <Typography variant="body2">کل موضوع‌ها:</Typography>
                         <Typography variant="body2" fontWeight="bold">{Array.isArray(categories) ? categories.length : 0}</Typography>
                       </Stack>
                       <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2">دسته‌بندی‌های پیش‌فرض:</Typography>
+                        <Typography variant="body2">موضوع‌های پیش‌فرض:</Typography>
                         <Typography variant="body2" fontWeight="bold">
                           {Array.isArray(categories) ? categories.filter(c => c.is_default).length : 0}
                         </Typography>
                       </Stack>
                       <Stack direction="row" justifyContent="space-between">
-                        <Typography variant="body2">دسته‌بندی‌های سفارشی:</Typography>
+                        <Typography variant="body2">موضوع‌های سفارشی:</Typography>
                         <Typography variant="body2" fontWeight="bold">
                           {Array.isArray(categories) ? categories.filter(c => !c.is_default).length : 0}
                         </Typography>
@@ -744,7 +744,7 @@ const AdminPanel: React.FC = () => {
                       ⚠️ توجه مهم:
                     </Typography>
                     <Typography variant="body2">
-                      تغییرات صدای برند بر <strong>تمام دسته‌بندی‌ها</strong> تأثیر می‌گذارد
+                      تغییرات صدای برند بر <strong>تمام موضوع‌ها</strong> تأثیر می‌گذارد
                       و شخصیت کلی چت‌بات را تعیین می‌کند.
                     </Typography>
                   </Alert>
@@ -901,7 +901,7 @@ const AdminPanel: React.FC = () => {
               {/* Category Distribution */}
               <Paper elevation={1} sx={{ p: 3 }}>
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  توزیع سوالات بر اساس دسته‌بندی:
+                  توزیع سوالات بر اساس موضوع:
                 </Typography>
                 <Stack spacing={2}>
                   {mockAnalytics.categoryDistribution.map((category, index) => (

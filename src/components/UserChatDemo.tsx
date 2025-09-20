@@ -43,14 +43,7 @@ interface Category {
 }
 
 const UserChatDemo: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: 'سلام! من دستیار هوشمند شما برای مارکت‌پلیس هستم. چطور می‌تونم کمکتون کنم؟',
-      sender: 'bot',
-      timestamp: new Date()
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
@@ -58,9 +51,9 @@ const UserChatDemo: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const suggestedQuestions = [
-    'چطور محصولم را در مارکت‌پلیس لیست کنم؟',
+    'چطور محصولم را در ایمالز لیست کنم؟',
     'مشکل در پرداخت دارم، چه کار کنم؟',
-    'کمیسیون مارکت‌پلیس چقدر است؟',
+    'کمیسیون ایمالز چقدر است؟',
     'چطور سفارشاتم را مدیریت کنم؟',
     'مشکل فنی در حسابم دارم',
     'چطور درآمدم را محاسبه کنم؟',
@@ -167,8 +160,8 @@ const UserChatDemo: React.FC = () => {
       
       // Fallback responses for demo
       const fallbackResponses: { [key: string]: { text: string; category: string } } = {
-        'چطور محصولم را در مارکت‌پلیس لیست کنم؟': {
-          text: 'برای لیست کردن محصول در مارکت‌پلیس، مراحل زیر را دنبال کنید:\n\n1️⃣ وارد پنل فروشنده شوید\n2️⃣ روی "افزودن محصول جدید" کلیک کنید\n3️⃣ اطلاعات کامل محصول را وارد کنید\n4️⃣ تصاویر با کیفیت آپلود کنید\n5️⃣ قیمت و موجودی را تنظیم کنید\n\nآیا سوال خاصی درباره هر کدام از این مراحل دارید؟',
+        'چطور محصولم را در ایمالز لیست کنم؟': {
+          text: 'برای لیست کردن محصول در ایمالز، مراحل زیر را دنبال کنید:\n\n1️⃣ وارد پنل فروشنده شوید\n2️⃣ روی "افزودن محصول جدید" کلیک کنید\n3️⃣ اطلاعات کامل محصول را وارد کنید\n4️⃣ تصاویر با کیفیت آپلود کنید\n5️⃣ قیمت و موجودی را تنظیم کنید\n\nآیا سوال خاصی درباره هر کدام از این مراحل دارید؟',
           category: 'product_listing'
         },
         'مشکل در پرداخت دارم، چه کار کنم؟': {
