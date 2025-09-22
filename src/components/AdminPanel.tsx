@@ -73,6 +73,7 @@ const AdminPanel: React.FC = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning'>('success');
+  const [apiConnectionError, setApiConnectionError] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState({
     persian_name: '',
@@ -99,11 +100,14 @@ const AdminPanel: React.FC = () => {
     try {
       const data = await categoryService.getCategories();
       setCategories(data);
+      setApiConnectionError(false);
       if (data.length > 0 && !selectedCategory) {
         setSelectedCategory(data[0].id);
       }
     } catch (error) {
       console.error('Error loading categories:', error);
+      setApiConnectionError(true);
+      
       // Set fallback default categories
       const fallbackCategories: Category[] = [
         { id: 'store_management', name: 'store_management', persian_name: 'مدیریت فروشگاه', keywords: [], qa_pairs: [], is_default: true, is_active: true },
@@ -115,6 +119,10 @@ const AdminPanel: React.FC = () => {
       if (!selectedCategory && fallbackCategories.length > 0) {
         setSelectedCategory(fallbackCategories[0].id);
       }
+      
+      setSnackbarMessage('⚠️ عدم اتصال به سرور - در حالت آفلاین کار می‌کنید');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
     }
   }, [selectedCategory]);
 
@@ -543,12 +551,28 @@ const AdminPanel: React.FC = () => {
           color: 'white', 
           p: 3 
         }}>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
-            پنل مدیریت چت‌بات
-          </Typography>
-          <Typography variant="body1" sx={{ opacity: 0.9 }}>
-            کنترل کامل روی رفتار و پاسخ‌های چت‌بات
-          </Typography>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Box>
+              <Typography variant="h4" fontWeight="bold" gutterBottom>
+                پنل مدیریت چت‌بات
+              </Typography>
+              <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                کنترل کامل روی رفتار و پاسخ‌های چت‌بات
+              </Typography>
+            </Box>
+            
+            {/* API Status Indicator */}
+            <Chip
+              label={apiConnectionError ? "آفلاین" : "آنلاین"}
+              color={apiConnectionError ? "warning" : "success"}
+              variant="filled"
+              size="small"
+              sx={{ 
+                color: 'white',
+                fontWeight: 'bold'
+              }}
+            />
+          </Stack>
         </Box>
 
         {/* Tabs */}
@@ -1130,7 +1154,7 @@ const AdminPanel: React.FC = () => {
                             تون صحبت:
                           </Typography>
                           <Typography variant="body2">
-                            {brandEssentials.tone}
+                            {brandEssentials.tone || 'تعریف نشده'}
                           </Typography>
                         </CardContent>
                       </Card>
@@ -1141,7 +1165,7 @@ const AdminPanel: React.FC = () => {
                             شخصیت:
                           </Typography>
                           <Typography variant="body2">
-                            {brandEssentials.personality}
+                            {brandEssentials.personality || 'تعریف نشده'}
                           </Typography>
                         </CardContent>
                       </Card>
@@ -1152,7 +1176,7 @@ const AdminPanel: React.FC = () => {
                             سبک زبان:
                           </Typography>
                           <Typography variant="body2">
-                            {brandEssentials.communication_style}
+                            {brandEssentials.communication_style || 'تعریف نشده'}
                           </Typography>
                         </CardContent>
                       </Card>
@@ -1163,9 +1187,13 @@ const AdminPanel: React.FC = () => {
                             ارزش‌های برند:
                           </Typography>
                           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                            {brandEssentials.brand_values.map((value, index) => (
-                              <Chip key={index} label={value} size="small" color="primary" variant="outlined" />
-                            ))}
+                            {brandEssentials.brand_values && brandEssentials.brand_values.length > 0 ? (
+                              brandEssentials.brand_values.map((value, index) => (
+                                <Chip key={index} label={value} size="small" color="primary" variant="outlined" />
+                              ))
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">هیچ ارزشی تعریف نشده</Typography>
+                            )}
                           </Stack>
                         </CardContent>
                       </Card>
