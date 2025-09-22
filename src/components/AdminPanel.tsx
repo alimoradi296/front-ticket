@@ -39,9 +39,12 @@ import {
   Description as DescriptionIcon,
   Category as CategoryIcon,
   Add as AddIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  ArrowUpward as ArrowUpIcon,
+  ArrowDownward as ArrowDownIcon,
+  QuestionAnswer as QuestionAnswerIcon
 } from '@mui/icons-material';
-import categoryService, { Category as ApiCategory } from '../services/categoryService';
+import categoryService, { Category as ApiCategory, QAPair, BrandEssentials } from '../services/categoryService';
 
 interface Template {
   category: string;
@@ -50,13 +53,7 @@ interface Template {
   keywords: string[];
 }
 
-interface BrandEssentials {
-  tone: string;
-  personality: string;
-  language_style: string;
-  brand_values: string[];
-  response_guidelines: string[];
-}
+// Using BrandEssentials interface from service
 
 // Using ApiCategory type from service
 type Category = ApiCategory;
@@ -69,6 +66,7 @@ const AdminPanel: React.FC = () => {
   const [editingTemplate, setEditingTemplate] = useState('');
   const [editingInstructions, setEditingInstructions] = useState('');
   const [editingQA, setEditingQA] = useState('');
+  const [editingQAPairs, setEditingQAPairs] = useState<QAPair[]>([]);
   const [editingBrand, setEditingBrand] = useState('');
   const [contentTab, setContentTab] = useState(0); // 0: Instructions, 1: QA
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -108,10 +106,10 @@ const AdminPanel: React.FC = () => {
       console.error('Error loading categories:', error);
       // Set fallback default categories
       const fallbackCategories: Category[] = [
-        { id: 'store_management', name: 'store_management', persian_name: 'مدیریت فروشگاه', keywords: [], is_default: true, is_active: true },
-        { id: 'product_listing', name: 'product_listing', persian_name: 'لیست محصولات', keywords: [], is_default: true, is_active: true },
-        { id: 'order_management', name: 'order_management', persian_name: 'مدیریت سفارش', keywords: [], is_default: true, is_active: true },
-        { id: 'payment_issues', name: 'payment_issues', persian_name: 'مشکلات پرداخت', keywords: [], is_default: true, is_active: true }
+        { id: 'store_management', name: 'store_management', persian_name: 'مدیریت فروشگاه', keywords: [], qa_pairs: [], is_default: true, is_active: true },
+        { id: 'product_listing', name: 'product_listing', persian_name: 'لیست محصولات', keywords: [], qa_pairs: [], is_default: true, is_active: true },
+        { id: 'order_management', name: 'order_management', persian_name: 'مدیریت سفارش', keywords: [], qa_pairs: [], is_default: true, is_active: true },
+        { id: 'payment_issues', name: 'payment_issues', persian_name: 'مشکلات پرداخت', keywords: [], qa_pairs: [], is_default: true, is_active: true }
       ];
       setCategories(fallbackCategories);
       if (!selectedCategory && fallbackCategories.length > 0) {
@@ -157,26 +155,39 @@ const AdminPanel: React.FC = () => {
   };
 
   const deleteCategory = async (categoryId: string) => {
-    if (!window.confirm('آیا از حذف این موضوع اطمینان دارید؟')) return;
+    const categoryToDelete = categories.find(cat => cat.id === categoryId);
+    if (!categoryToDelete) return;
+    
+    if (!window.confirm(`آیا از حذف موضوع "${categoryToDelete.persian_name}" اطمینان دارید؟\nاین عمل قابل بازگشت نیست.`)) {
+      return;
+    }
     
     setSaveStatus('saving');
     try {
-      // For now, just remove from local state - demo functionality
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await categoryService.deleteCategory(categoryId);
       
+      // Remove from local state
       setCategories(prev => prev.filter(cat => cat.id !== categoryId));
-      if (selectedCategory === categoryId && Array.isArray(categories) && categories.length > 0) {
+      
+      // Update selected category if needed
+      if (selectedCategory === categoryId) {
         const remaining = categories.filter(cat => cat.id !== categoryId);
         if (remaining.length > 0) {
           setSelectedCategory(remaining[0].id);
         }
       }
+      
       setSaveStatus('saved');
+      setSnackbarMessage(`موضوع "${categoryToDelete.persian_name}" با موفقیت حذف شد! ✅`);
+      setSnackbarSeverity('success');
       setSnackbarOpen(true);
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Error deleting category:', error);
       setSaveStatus('error');
+      setSnackbarMessage('خطا در حذف موضوع! لطفاً دوباره تلاش کنید.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
       setTimeout(() => setSaveStatus('idle'), 2000);
     }
   };
@@ -216,12 +227,38 @@ const AdminPanel: React.FC = () => {
         setTemplates(prev => ({ ...prev, [category]: template }));
         setEditingTemplate(template.content);
         setEditingInstructions(data.instructions || '');
-        setEditingQA(data.qa_content || '');
+        setEditingQAPairs(data.qa_pairs || []);
+        // Keep legacy QA content for backward compatibility
+        const qaText = data.qa_pairs?.map((qa: QAPair) => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n') || '';
+        setEditingQA(qaText);
       } else {
         // Fallback data for demo
         const categoryData = Array.isArray(categories) ? categories.find(c => c.id === category) : null;
         const fallbackInstructions = `# دستورالعمل‌های ${categoryData?.persian_name || category}\n\nاین بخش شامل دستورالعمل‌های کلی برای پاسخ‌دهی به ${categoryData?.persian_name || category} است.\n\n## رهنمودهای اصلی:\n- پاسخ‌ها باید واضح و مفید باشند\n- از زبان محترمانه و حرفه‌ای استفاده کنید\n- مراحل را به صورت مرحله‌بندی شده ارائه دهید`;
-        const fallbackQA = `# سوالات متداول ${categoryData?.persian_name || category}\n\n## سوال ۱: چگونه...؟\nپاسخ: برای این کار...\n\n## سوال ۲: آیا امکان...؟\nپاسخ: بله، می‌توانید...\n\n## سوال ۳: چرا...؟\nپاسخ: این مسئله به دلیل...`;
+        const fallbackQAPairs: QAPair[] = [
+          {
+            id: '1',
+            question: `چگونه می‌توانم در زمینه ${categoryData?.persian_name || category} کمک دریافت کنم؟`,
+            answer: `تیم پشتیبانی ایمالز آماده کمک به شما در زمینه ${categoryData?.persian_name || category} است.`,
+            keywords: [],
+            priority: 1,
+            usage_count: 0,
+            created_at: new Date().toISOString(),
+            is_active: true
+          },
+          {
+            id: '2',
+            question: `چه مواردی در این دسته‌بندی پوشش داده می‌شود؟`,
+            answer: `این دسته‌بندی تمام موضوعات مرتبط با ${categoryData?.persian_name || category} را شامل می‌شود.`,
+            keywords: [],
+            priority: 1,
+            usage_count: 0,
+            created_at: new Date().toISOString(),
+            is_active: true
+          }
+        ];
+        
+        const fallbackQA = fallbackQAPairs.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n');
         
         const fallbackTemplate = {
           category,
@@ -232,6 +269,7 @@ const AdminPanel: React.FC = () => {
         setTemplates(prev => ({ ...prev, [category]: fallbackTemplate }));
         setEditingTemplate(fallbackTemplate.content);
         setEditingInstructions(fallbackInstructions);
+        setEditingQAPairs(fallbackQAPairs);
         setEditingQA(fallbackQA);
       }
     } catch (error) {
@@ -258,16 +296,11 @@ const AdminPanel: React.FC = () => {
 
   const loadCategoryQA = useCallback(async (category: string) => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories/${category}/qa`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setEditingQA(data.qa_content || '');
-      }
+      const data = await categoryService.getCategoryQA(category);
+      setEditingQAPairs(data.qa_pairs || []);
+      // Convert to text format for legacy editor
+      const qaText = data.qa_pairs?.map((qa: QAPair) => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n') || '';
+      setEditingQA(qaText);
     } catch (error) {
       console.error('Error loading QA content:', error);
     }
@@ -293,37 +326,31 @@ const AdminPanel: React.FC = () => {
 
   const loadBrandEssentials = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/brand`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const brandEssentials = {
-          tone: data.tone,
-          personality: data.personality,
-          language_style: data.communication_style,
-          brand_values: [],
-          response_guidelines: []
-        };
-        setBrandEssentials(brandEssentials);
-        setEditingBrand(JSON.stringify(brandEssentials, null, 2));
-      } else {
-        // Fallback data for demo
-        const fallbackBrand = {
-          tone: "دوستانه و حرفه‌ای",
-          personality: "کمک‌کننده، صبور، و قابل اعتماد",
-          language_style: "فارسی رسمی اما صمیمی",
-          brand_values: ["کیفیت", "سرعت", "اعتماد", "نوآوری"],
-          response_guidelines: ["همیشه با سلام شروع کن", "راه‌حل عملی ارائه ده", "اگر نمی‌دانی صادقانه بگو"]
-        };
-        setBrandEssentials(fallbackBrand);
-        setEditingBrand(JSON.stringify(fallbackBrand, null, 2));
-      }
+      const data = await categoryService.getBrandEssentials();
+      setBrandEssentials(data);
+      setEditingBrand(JSON.stringify(data, null, 2));
     } catch (error) {
       console.error('Error loading brand essentials:', error);
+      // Fallback data for demo
+      const fallbackBrand = {
+        operator_identity: "اپراتور پشتیبانی ایمالز",
+        marketplace_name: "ایمالز",
+        tone: "دوستانه و حرفه‌ای",
+        personality: "کمک‌کننده، صبور، و قابل اعتماد",
+        communication_style: "فارسی رسمی اما صمیمی",
+        expertise_level: "متخصص",
+        greeting_style: "گرم و دوستانه",
+        problem_solving_approach: "گام‌به‌گام و عملی",
+        language_formality: "رسمی اما صمیمی",
+        response_length: "متوسط",
+        brand_values: ["کیفیت", "سرعت", "اعتماد", "نوآوری"],
+        human_characteristics: ["صبور", "دقیق", "مهربان"],
+        special_instructions: ["همیشه با سلام شروع کن", "راه‌حل عملی ارائه ده", "اگر نمی‌دانی صادقانه بگو"],
+        version: 1,
+        updated_at: new Date().toISOString()
+      };
+      setBrandEssentials(fallbackBrand);
+      setEditingBrand(JSON.stringify(fallbackBrand, null, 2));
     }
   };
 
@@ -366,8 +393,8 @@ const AdminPanel: React.FC = () => {
   };
 
   const saveQA = async () => {
-    if (!editingQA.trim()) {
-      setSnackbarMessage('سوالات متداول نمی‌تواند خالی باشد!');
+    if (editingQAPairs.length === 0) {
+      setSnackbarMessage('حداقل یک سوال و جواب باید وجود داشته باشد!');
       setSnackbarSeverity('warning');
       setSnackbarOpen(true);
       return;
@@ -375,24 +402,18 @@ const AdminPanel: React.FC = () => {
 
     setSaveStatus('saving');
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories/${selectedCategory}/qa`, {
-        method: 'PUT',
-        headers: { 
-          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
-          'Content-Type': 'application/json' 
-        },
-        body: editingQA
-      });
-
-      if (response.ok) {
-        setSaveStatus('saved');
-        setSnackbarMessage('سوالات متداول با موفقیت ذخیره شد! ✅');
-        setSnackbarSeverity('success');
-        setSnackbarOpen(true);
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      const qaPairRequests = editingQAPairs.map(qa => ({
+        question: qa.question,
+        answer: qa.answer
+      }));
+      
+      await categoryService.updateQAPairs(selectedCategory, qaPairRequests);
+      
+      setSaveStatus('saved');
+      setSnackbarMessage('سوالات متداول با موفقیت ذخیره شد! ✅');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+      setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Error saving QA:', error);
       setSaveStatus('error');
@@ -437,17 +458,20 @@ const AdminPanel: React.FC = () => {
   const saveBrandEssentials = async () => {
     setSaveStatus('saving');
     try {
-      // For demo purposes, just simulate save
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
       const essentials = JSON.parse(editingBrand);
-      setBrandEssentials(essentials);
+      const updatedBrand = await categoryService.updateBrandEssentials(essentials);
+      setBrandEssentials(updatedBrand);
       setSaveStatus('saved');
+      setSnackbarMessage('صدای برند با موفقیت ذخیره شد! ✅');
+      setSnackbarSeverity('success');
       setSnackbarOpen(true);
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Error saving brand essentials:', error);
       setSaveStatus('error');
+      setSnackbarMessage('خطا در ذخیره صدای برند! لطفاً فرمت JSON را بررسی کنید.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
       setTimeout(() => setSaveStatus('idle'), 2000);
     }
   };
@@ -464,6 +488,44 @@ const AdminPanel: React.FC = () => {
 
   const resetQA = () => {
     loadCategoryQA(selectedCategory);
+  };
+
+  // QA Pair management functions
+  const addQAPair = () => {
+    const newQA: QAPair = {
+      id: Date.now().toString(), // Temporary ID
+      question: '',
+      answer: '',
+      keywords: [],
+      priority: 1,
+      usage_count: 0,
+      created_at: new Date().toISOString(),
+      is_active: true
+    };
+    setEditingQAPairs(prev => [...prev, newQA]);
+  };
+
+  const updateQAPair = (index: number, field: 'question' | 'answer', value: string) => {
+    setEditingQAPairs(prev => prev.map((qa, i) => 
+      i === index ? { ...qa, [field]: value } : qa
+    ));
+  };
+
+  const deleteQAPairLocal = (index: number) => {
+    setEditingQAPairs(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const moveQAPair = (index: number, direction: 'up' | 'down') => {
+    setEditingQAPairs(prev => {
+      const newArray = [...prev];
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      
+      if (targetIndex >= 0 && targetIndex < newArray.length) {
+        [newArray[index], newArray[targetIndex]] = [newArray[targetIndex], newArray[index]];
+      }
+      
+      return newArray;
+    });
   };
 
   const resetBrandEssentials = () => {
@@ -664,8 +726,17 @@ const AdminPanel: React.FC = () => {
                             <RefreshIcon />
                           </IconButton>
                           <Button
+                            onClick={addQAPair}
+                            variant="outlined"
+                            startIcon={<AddIcon />}
+                            size="small"
+                            color="secondary"
+                          >
+                            افزودن سوال
+                          </Button>
+                          <Button
                             onClick={saveQA}
-                            disabled={saveStatus === 'saving' || !editingQA.trim()}
+                            disabled={saveStatus === 'saving' || editingQAPairs.length === 0}
                             variant="contained"
                             color="secondary"
                             startIcon={saveStatus === 'saving' ? <LinearProgress /> : <SaveIcon />}
@@ -677,34 +748,101 @@ const AdminPanel: React.FC = () => {
                         </Stack>
                       </Stack>
 
-                      <Alert severity="warning" sx={{ mb: 2 }}>
+                      <Alert severity="info" sx={{ mb: 2 }}>
                         <Typography variant="body2" fontWeight="bold">
                           🎯 راهنمای سوالات متداول:
                         </Typography>
                         <Box component="ul" sx={{ m: 0, pl: 2, fontSize: '0.875rem' }}>
-                          <li>سوالات رایج کاربران در این موضوع</li>
-                          <li>پاسخ‌های استاندارد و آماده</li>
-                          <li>مثال‌های عملی و کاربردی</li>
-                          <li>راه‌حل‌های گام‌به‌گام</li>
+                          <li>هر سوال و جواب به صورت جداگانه قابل ویرایش است</li>
+                          <li>از دکمه‌های بالا/پایین برای تغییر ترتیب استفاده کنید</li>
+                          <li>سوالات بر اساس اولویت و کاربرد تنظیم می‌شوند</li>
                         </Box>
                       </Alert>
 
-                      <TextField
-                        fullWidth
-                        multiline
-                        rows={16}
-                        value={editingQA}
-                        onChange={(e) => setEditingQA(e.target.value)}
-                        placeholder="سوالات و پاسخ‌های متداول را اینجا وارد کنید..."
-                        variant="outlined"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            fontFamily: 'monospace',
-                            fontSize: '0.9rem',
-                            lineHeight: 1.6
-                          }
-                        }}
-                      />
+                      {/* QA Pairs List */}
+                      <Stack spacing={2}>
+                        {editingQAPairs.map((qa, index) => (
+                          <Card key={qa.id || index} variant="outlined" sx={{ p: 2 }}>
+                            <Stack direction="row" alignItems="flex-start" spacing={2}>
+                              <QuestionAnswerIcon color="secondary" sx={{ mt: 1, flexShrink: 0 }} />
+                              
+                              <Stack spacing={2} sx={{ flex: 1 }}>
+                                <TextField
+                                  fullWidth
+                                  label={`سوال ${index + 1}`}
+                                  value={qa.question}
+                                  onChange={(e) => updateQAPair(index, 'question', e.target.value)}
+                                  placeholder="سوال خود را وارد کنید..."
+                                  variant="outlined"
+                                  size="small"
+                                  multiline
+                                  maxRows={3}
+                                />
+                                
+                                <TextField
+                                  fullWidth
+                                  label={`پاسخ ${index + 1}`}
+                                  value={qa.answer}
+                                  onChange={(e) => updateQAPair(index, 'answer', e.target.value)}
+                                  placeholder="پاسخ مناسب را وارد کنید..."
+                                  variant="outlined"
+                                  size="small"
+                                  multiline
+                                  rows={3}
+                                  maxRows={6}
+                                />
+                              </Stack>
+                              
+                              <Stack spacing={0.5}>
+                                <IconButton
+                                  onClick={() => moveQAPair(index, 'up')}
+                                  disabled={index === 0}
+                                  size="small"
+                                  color="default"
+                                >
+                                  <ArrowUpIcon />
+                                </IconButton>
+                                
+                                <IconButton
+                                  onClick={() => moveQAPair(index, 'down')}
+                                  disabled={index === editingQAPairs.length - 1}
+                                  size="small"
+                                  color="default"
+                                >
+                                  <ArrowDownIcon />
+                                </IconButton>
+                                
+                                <IconButton
+                                  onClick={() => deleteQAPairLocal(index)}
+                                  size="small"
+                                  color="error"
+                                  disabled={editingQAPairs.length <= 1}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </Stack>
+                            </Stack>
+                            
+                            {qa.usage_count > 0 && (
+                              <Chip 
+                                label={`استفاده شده: ${qa.usage_count} بار`}
+                                size="small"
+                                color="info"
+                                variant="outlined"
+                                sx={{ mt: 1 }}
+                              />
+                            )}
+                          </Card>
+                        ))}
+                        
+                        {editingQAPairs.length === 0 && (
+                          <Alert severity="warning">
+                            <Typography variant="body2">
+                              هیچ سوال و جوابی یافت نشد. از دکمه "افزودن سوال" برای ایجاد اولین سوال استفاده کنید.
+                            </Typography>
+                          </Alert>
+                        )}
+                      </Stack>
                     </Box>
                   )}
 
