@@ -33,6 +33,11 @@ export interface CategoryQA {
   category_id: string;
 }
 
+export interface NewCategoryRequest {
+  persian_name: string;
+  description?: string;
+}
+
 export const categoryService = {
   // Get all categories
   async getCategories(): Promise<Category[]> {
@@ -110,6 +115,21 @@ export const categoryService = {
     if (!response.ok) {
       throw new Error(`Failed to update QA: ${response.status} ${response.statusText}`);
     }
+  },
+
+  // Create new category
+  async createCategory(categoryData: NewCategoryRequest): Promise<Category> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/categories`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(categoryData)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to create category: ${response.status} ${response.statusText}`);
+    }
+    
+    return response.json();
   }
 };
 

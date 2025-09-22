@@ -41,6 +41,7 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon
 } from '@mui/icons-material';
+import categoryService from '../services/categoryService';
 
 interface Template {
   category: string;
@@ -84,10 +85,8 @@ const AdminPanel: React.FC = () => {
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning'>('success');
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState({
-    name: '',
     persian_name: '',
-    description: '',
-    keywords: ''
+    description: ''
   });
   const [showAddForm, setShowAddForm] = useState(false);
 
@@ -108,19 +107,10 @@ const AdminPanel: React.FC = () => {
 
   const loadCategories = useCallback(async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories`, {
-        headers: {
-          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        // Backend returns array directly now
-        setCategories(data);
-        if (data.length > 0 && !selectedCategory) {
-          setSelectedCategory(data[0].id);
-        }
+      const data = await categoryService.getCategories();
+      setCategories(data);
+      if (data.length > 0 && !selectedCategory) {
+        setSelectedCategory(data[0].id);
       }
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -139,33 +129,37 @@ const AdminPanel: React.FC = () => {
   }, [selectedCategory]);
 
   const createCategory = async () => {
-    if (!newCategory.name || !newCategory.persian_name) return;
+    if (!newCategory.persian_name.trim()) {
+      setSnackbarMessage('نام فارسی موضوع الزامی است!');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
     
     setSaveStatus('saving');
     try {
-      // For now, just show success - the backend doesn't have category creation yet
-      // This is demo functionality
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Add to local state for demo
-      const newCat = {
-        id: newCategory.name,
-        name: newCategory.name,
+      const createdCategory = await categoryService.createCategory({
         persian_name: newCategory.persian_name,
-        description: newCategory.description,
-        keywords: newCategory.keywords.split(',').map(k => k.trim()).filter(k => k.length > 0),
-        is_default: false
-      };
-      setCategories(prev => [...prev, newCat]);
+        description: newCategory.description || undefined
+      });
       
-      setNewCategory({ name: '', persian_name: '', description: '', keywords: '' });
+      // Add to local state
+      setCategories(prev => [...prev, createdCategory]);
+      
+      // Reset form
+      setNewCategory({ persian_name: '', description: '' });
       setShowAddForm(false);
       setSaveStatus('saved');
+      setSnackbarMessage(`موضوع "${newCategory.persian_name}" با موفقیت ایجاد شد! ✅`);
+      setSnackbarSeverity('success');
       setSnackbarOpen(true);
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (error) {
       console.error('Error creating category:', error);
       setSaveStatus('error');
+      setSnackbarMessage('خطا در ایجاد موضوع! لطفاً دوباره تلاش کنید.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
       setTimeout(() => setSaveStatus('idle'), 2000);
     }
   };
@@ -765,27 +759,24 @@ const AdminPanel: React.FC = () => {
                         <Typography variant="h6" gutterBottom>
                           افزودن موضوع جدید:
                         </Typography>
+                        <Alert severity="info" sx={{ mb: 2 }}>
+                          <Typography variant="body2">
+                            💡 پس از ایجاد موضوع، دستورالعمل‌ها و سوالات متداول پیش‌فرض به صورت خودکار تولید می‌شوند.
+                          </Typography>
+                        </Alert>
                         <Grid container spacing={2}>
-                          <Grid size={{ xs: 12, md: 6 }}>
+                          <Grid size={{ xs: 12 }}>
                             <TextField
                               fullWidth
-                              label="نام انگلیسی"
-                              value={newCategory.name}
-                              onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
-                              placeholder="shipping_logistics"
-                              variant="outlined"
-                              size="small"
-                            />
-                          </Grid>
-                          <Grid size={{ xs: 12, md: 6 }}>
-                            <TextField
-                              fullWidth
-                              label="نام فارسی"
+                              label="نام موضوع (فارسی) *"
                               value={newCategory.persian_name}
                               onChange={(e) => setNewCategory(prev => ({ ...prev, persian_name: e.target.value }))}
-                              placeholder="لجستیک و ارسال"
+                              placeholder="مثال: لجستیک و ارسال"
                               variant="outlined"
                               size="small"
+                              required
+                              error={!newCategory.persian_name.trim() && newCategory.persian_name.length > 0}
+                              helperText={!newCategory.persian_name.trim() && newCategory.persian_name.length > 0 ? 'نام موضوع الزامی است' : ''}
                             />
                           </Grid>
                           <Grid size={{ xs: 12 }}>
@@ -794,38 +785,27 @@ const AdminPanel: React.FC = () => {
                               label="توضیحات (اختیاری)"
                               value={newCategory.description}
                               onChange={(e) => setNewCategory(prev => ({ ...prev, description: e.target.value }))}
-                              placeholder="مسائل مربوط به ارسال، حمل و نقل، و تحویل کالا"
+                              placeholder="مثال: مسائل مربوط به ارسال، حمل و نقل، و تحویل کالا"
                               variant="outlined"
                               size="small"
                               multiline
-                              rows={2}
-                            />
-                          </Grid>
-                          <Grid size={{ xs: 12 }}>
-                            <TextField
-                              fullWidth
-                              label="کلمات کلیدی (با کاما جدا کنید)"
-                              value={newCategory.keywords}
-                              onChange={(e) => setNewCategory(prev => ({ ...prev, keywords: e.target.value }))}
-                              placeholder="ارسال، تحویل، پست، باربری، حمل"
-                              variant="outlined"
-                              size="small"
+                              rows={3}
                             />
                           </Grid>
                           <Grid size={{ xs: 12 }}>
                             <Stack direction="row" spacing={2}>
                               <Button
                                 onClick={createCategory}
-                                disabled={saveStatus === 'saving' || !newCategory.name || !newCategory.persian_name}
+                                disabled={saveStatus === 'saving' || !newCategory.persian_name.trim()}
                                 variant="contained"
                                 startIcon={<SaveIcon />}
                               >
-                                {saveStatus === 'saving' ? 'در حال ذخیره...' : 'ایجاد موضوع'}
+                                {saveStatus === 'saving' ? 'در حال ایجاد...' : 'ایجاد موضوع'}
                               </Button>
                               <Button
                                 onClick={() => {
                                   setShowAddForm(false);
-                                  setNewCategory({ name: '', persian_name: '', description: '', keywords: '' });
+                                  setNewCategory({ persian_name: '', description: '' });
                                 }}
                                 variant="outlined"
                               >
@@ -908,8 +888,8 @@ const AdminPanel: React.FC = () => {
                       </Typography>
                       <Box component="ul" sx={{ m: 0, pl: 2, fontSize: '0.875rem' }}>
                         <li>موضوع‌های پیش‌فرض قابل حذف نیستند</li>
-                        <li>هر موضوع جدید فایل الگوی مخصوص خود را دارد</li>
-                        <li>کلمات کلیدی برای تشخیص خودکار استفاده می‌شوند</li>
+                        <li>هر موضوع جدید دستورالعمل و سوالات متداول پیش‌فرض دارد</li>
+                        <li>شناسه موضوع به صورت خودکار از نام فارسی تولید می‌شود</li>
                         <li>تغییرات فوراً در سیستم طبقه‌بندی اعمال می‌شوند</li>
                       </Box>
                     </Alert>
