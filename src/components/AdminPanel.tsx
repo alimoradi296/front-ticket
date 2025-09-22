@@ -1152,7 +1152,7 @@ const AdminPanel: React.FC = () => {
                             سبک زبان:
                           </Typography>
                           <Typography variant="body2">
-                            {brandEssentials.language_style}
+                            {brandEssentials.communication_style}
                           </Typography>
                         </CardContent>
                       </Card>
