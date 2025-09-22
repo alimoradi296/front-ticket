@@ -74,9 +74,14 @@ const AdminPanel: React.FC = () => {
   const [templates, setTemplates] = useState<{ [key: string]: Template }>({});
   const [brandEssentials, setBrandEssentials] = useState<BrandEssentials | null>(null);
   const [editingTemplate, setEditingTemplate] = useState('');
+  const [editingInstructions, setEditingInstructions] = useState('');
+  const [editingQA, setEditingQA] = useState('');
   const [editingBrand, setEditingBrand] = useState('');
+  const [contentTab, setContentTab] = useState(0); // 0: Instructions, 1: QA
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning'>('success');
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState({
     name: '',
@@ -224,22 +229,63 @@ const AdminPanel: React.FC = () => {
         };
         setTemplates(prev => ({ ...prev, [category]: template }));
         setEditingTemplate(template.content);
+        setEditingInstructions(data.instructions || '');
+        setEditingQA(data.qa_content || '');
       } else {
         // Fallback data for demo
         const categoryData = Array.isArray(categories) ? categories.find(c => c.id === category) : null;
+        const fallbackInstructions = `# دستورالعمل‌های ${categoryData?.persian_name || category}\n\nاین بخش شامل دستورالعمل‌های کلی برای پاسخ‌دهی به ${categoryData?.persian_name || category} است.\n\n## رهنمودهای اصلی:\n- پاسخ‌ها باید واضح و مفید باشند\n- از زبان محترمانه و حرفه‌ای استفاده کنید\n- مراحل را به صورت مرحله‌بندی شده ارائه دهید`;
+        const fallbackQA = `# سوالات متداول ${categoryData?.persian_name || category}\n\n## سوال ۱: چگونه...؟\nپاسخ: برای این کار...\n\n## سوال ۲: آیا امکان...؟\nپاسخ: بله، می‌توانید...\n\n## سوال ۳: چرا...؟\nپاسخ: این مسئله به دلیل...`;
+        
         const fallbackTemplate = {
           category,
           persian_name: categoryData?.persian_name || category,
-          content: `# الگوی پاسخ برای ${categoryData?.persian_name || category}\n\nاین یک الگوی نمونه است. شما می‌توانید آن را ویرایش کنید.\n\n## راهنمایی‌ها:\n- پاسخ‌ها باید مفید و واضح باشند\n- از زبان محترمانه استفاده کنید\n- مراحل را به صورت شماره‌گذاری شده ارائه دهید`,
+          content: `${fallbackInstructions}\n\n${fallbackQA}`,
           keywords: categoryData?.keywords || ['نمونه', 'تست']
         };
         setTemplates(prev => ({ ...prev, [category]: fallbackTemplate }));
         setEditingTemplate(fallbackTemplate.content);
+        setEditingInstructions(fallbackInstructions);
+        setEditingQA(fallbackQA);
       }
     } catch (error) {
       console.error('Error loading template:', error);
     }
   }, [categories]);
+
+  const loadCategoryInstructions = useCallback(async (category: string) => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories/${category}/instructions`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setEditingInstructions(data.instructions || '');
+      }
+    } catch (error) {
+      console.error('Error loading instructions:', error);
+    }
+  }, []);
+
+  const loadCategoryQA = useCallback(async (category: string) => {
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories/${category}/qa`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setEditingQA(data.qa_content || '');
+      }
+    } catch (error) {
+      console.error('Error loading QA content:', error);
+    }
+  }, []);
 
   useEffect(() => {
     loadCategories();
@@ -248,6 +294,8 @@ const AdminPanel: React.FC = () => {
   useEffect(() => {
     if (selectedCategory) {
       loadTemplate(selectedCategory);
+      // Reset content tab when switching categories
+      setContentTab(0);
     }
   }, [selectedCategory, loadTemplate]);
 
@@ -290,6 +338,82 @@ const AdminPanel: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading brand essentials:', error);
+    }
+  };
+
+  const saveInstructions = async () => {
+    if (!editingInstructions.trim()) {
+      setSnackbarMessage('دستورالعمل‌ها نمی‌تواند خالی باشد!');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setSaveStatus('saving');
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories/${selectedCategory}/instructions`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
+          'Content-Type': 'application/json' 
+        },
+        body: editingInstructions
+      });
+
+      if (response.ok) {
+        setSaveStatus('saved');
+        setSnackbarMessage('دستورالعمل‌ها با موفقیت ذخیره شد! ✅');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error saving instructions:', error);
+      setSaveStatus('error');
+      setSnackbarMessage('خطا در ذخیره دستورالعمل‌ها! لطفاً دوباره تلاش کنید.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    }
+  };
+
+  const saveQA = async () => {
+    if (!editingQA.trim()) {
+      setSnackbarMessage('سوالات متداول نمی‌تواند خالی باشد!');
+      setSnackbarSeverity('warning');
+      setSnackbarOpen(true);
+      return;
+    }
+
+    setSaveStatus('saving');
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories/${selectedCategory}/qa`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
+          'Content-Type': 'application/json' 
+        },
+        body: editingQA
+      });
+
+      if (response.ok) {
+        setSaveStatus('saved');
+        setSnackbarMessage('سوالات متداول با موفقیت ذخیره شد! ✅');
+        setSnackbarSeverity('success');
+        setSnackbarOpen(true);
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error saving QA:', error);
+      setSaveStatus('error');
+      setSnackbarMessage('خطا در ذخیره سوالات متداول! لطفاً دوباره تلاش کنید.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+      setTimeout(() => setSaveStatus('idle'), 2000);
     }
   };
 
@@ -346,6 +470,14 @@ const AdminPanel: React.FC = () => {
     if (templates[selectedCategory]) {
       setEditingTemplate(templates[selectedCategory].content);
     }
+  };
+
+  const resetInstructions = () => {
+    loadCategoryInstructions(selectedCategory);
+  };
+
+  const resetQA = () => {
+    loadCategoryQA(selectedCategory);
   };
 
   const resetBrandEssentials = () => {
@@ -457,51 +589,148 @@ const AdminPanel: React.FC = () => {
               {/* Editor */}
               <Grid size={{ xs: 12, md: 9 }}>
                 <Paper elevation={1} sx={{ p: 3 }}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
-                    <Typography variant="h6" fontWeight="bold">
-                      ویرایش الگوی: {Array.isArray(categories) ? categories.find(c => c.id === selectedCategory)?.persian_name : selectedCategory}
-                    </Typography>
-                    <Stack direction="row" spacing={1}>
-                      <IconButton onClick={resetTemplate} color="default">
-                        <RefreshIcon />
-                      </IconButton>
-                      <Button
-                        onClick={saveTemplate}
-                        disabled={saveStatus === 'saving'}
-                        variant="contained"
-                        startIcon={saveStatus === 'saving' ? <LinearProgress /> : <SaveIcon />}
-                        sx={{ minWidth: 140 }}
-                      >
-                        {saveStatus === 'saving' ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
-                      </Button>
-                    </Stack>
-                  </Stack>
+                  <Typography variant="h6" fontWeight="bold" mb={2}>
+                    ویرایش الگوی: {Array.isArray(categories) ? categories.find(c => c.id === selectedCategory)?.persian_name : selectedCategory}
+                  </Typography>
 
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={16}
-                    value={editingTemplate}
-                    onChange={(e) => setEditingTemplate(e.target.value)}
-                    placeholder="الگوی پاسخ را اینجا وارد کنید..."
-                    variant="outlined"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        fontFamily: 'monospace',
-                        fontSize: '0.9rem',
-                        lineHeight: 1.6
-                      }
-                    }}
-                  />
+                  {/* Content Type Tabs */}
+                  <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                    <Tabs value={contentTab} onChange={(e, newValue) => setContentTab(newValue)} variant="fullWidth">
+                      <Tab 
+                        label="دستورالعمل‌ها" 
+                        icon={<DescriptionIcon />} 
+                        iconPosition="start"
+                        sx={{ fontWeight: 'bold' }} 
+                      />
+                      <Tab 
+                        label="سوالات متداول" 
+                        icon={<AssignmentIcon />} 
+                        iconPosition="start"
+                        sx={{ fontWeight: 'bold' }} 
+                      />
+                    </Tabs>
+                  </Box>
+
+                  {/* Instructions Tab */}
+                  {contentTab === 0 && (
+                    <Box>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                        <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                          📋 دستورالعمل‌های پاسخ‌دهی
+                        </Typography>
+                        <Stack direction="row" spacing={1}>
+                          <IconButton onClick={resetInstructions} color="default" size="small">
+                            <RefreshIcon />
+                          </IconButton>
+                          <Button
+                            onClick={saveInstructions}
+                            disabled={saveStatus === 'saving' || !editingInstructions.trim()}
+                            variant="contained"
+                            startIcon={saveStatus === 'saving' ? <LinearProgress /> : <SaveIcon />}
+                            size="small"
+                            sx={{ minWidth: 140 }}
+                          >
+                            {saveStatus === 'saving' ? 'در حال ذخیره...' : 'ذخیره دستورالعمل‌ها'}
+                          </Button>
+                        </Stack>
+                      </Stack>
+
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight="bold">
+                          💡 راهنمای دستورالعمل‌ها:
+                        </Typography>
+                        <Box component="ul" sx={{ m: 0, pl: 2, fontSize: '0.875rem' }}>
+                          <li>رهنمودهای کلی برای نحوه پاسخ‌دهی</li>
+                          <li>سبک و تون مکالمه</li>
+                          <li>نکات فنی و تخصصی</li>
+                          <li>محدودیت‌ها و قوانین</li>
+                        </Box>
+                      </Alert>
+
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={16}
+                        value={editingInstructions}
+                        onChange={(e) => setEditingInstructions(e.target.value)}
+                        placeholder="دستورالعمل‌های پاسخ‌دهی را اینجا وارد کنید..."
+                        variant="outlined"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            fontFamily: 'monospace',
+                            fontSize: '0.9rem',
+                            lineHeight: 1.6
+                          }
+                        }}
+                      />
+                    </Box>
+                  )}
+
+                  {/* QA Tab */}
+                  {contentTab === 1 && (
+                    <Box>
+                      <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
+                        <Typography variant="subtitle1" fontWeight="bold" color="secondary">
+                          ❓ سوالات و پاسخ‌های متداول
+                        </Typography>
+                        <Stack direction="row" spacing={1}>
+                          <IconButton onClick={resetQA} color="default" size="small">
+                            <RefreshIcon />
+                          </IconButton>
+                          <Button
+                            onClick={saveQA}
+                            disabled={saveStatus === 'saving' || !editingQA.trim()}
+                            variant="contained"
+                            color="secondary"
+                            startIcon={saveStatus === 'saving' ? <LinearProgress /> : <SaveIcon />}
+                            size="small"
+                            sx={{ minWidth: 140 }}
+                          >
+                            {saveStatus === 'saving' ? 'در حال ذخیره...' : 'ذخیره سوالات متداول'}
+                          </Button>
+                        </Stack>
+                      </Stack>
+
+                      <Alert severity="warning" sx={{ mb: 2 }}>
+                        <Typography variant="body2" fontWeight="bold">
+                          🎯 راهنمای سوالات متداول:
+                        </Typography>
+                        <Box component="ul" sx={{ m: 0, pl: 2, fontSize: '0.875rem' }}>
+                          <li>سوالات رایج کاربران در این موضوع</li>
+                          <li>پاسخ‌های استاندارد و آماده</li>
+                          <li>مثال‌های عملی و کاربردی</li>
+                          <li>راه‌حل‌های گام‌به‌گام</li>
+                        </Box>
+                      </Alert>
+
+                      <TextField
+                        fullWidth
+                        multiline
+                        rows={16}
+                        value={editingQA}
+                        onChange={(e) => setEditingQA(e.target.value)}
+                        placeholder="سوالات و پاسخ‌های متداول را اینجا وارد کنید..."
+                        variant="outlined"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            fontFamily: 'monospace',
+                            fontSize: '0.9rem',
+                            lineHeight: 1.6
+                          }
+                        }}
+                      />
+                    </Box>
+                  )}
 
                   <Alert severity="success" sx={{ mt: 2 }}>
                     <Typography variant="body2" fontWeight="bold">
-                      پیش‌نمایش تأثیر:
+                      🔄 پیش‌نمایش تأثیر:
                     </Typography>
                     <Typography variant="body2">
-                      با تغییر این الگو، تمام پاسخ‌های مربوط به موضوع "
-                      {Array.isArray(categories) ? categories.find(c => c.id === selectedCategory)?.persian_name : selectedCategory}
-                      " به شکل جدید نمایش داده خواهند شد.
+                      {contentTab === 0 
+                        ? `دستورالعمل‌های ${Array.isArray(categories) ? categories.find(c => c.id === selectedCategory)?.persian_name : selectedCategory} بر تمام پاسخ‌های این موضوع تأثیر می‌گذارد.`
+                        : `سوالات متداول ${Array.isArray(categories) ? categories.find(c => c.id === selectedCategory)?.persian_name : selectedCategory} برای پاسخ‌دهی دقیق‌تر استفاده می‌شود.`
+                      }
                     </Typography>
                   </Alert>
                 </Paper>
@@ -966,12 +1195,12 @@ const AdminPanel: React.FC = () => {
       {/* Snackbar for save confirmation */}
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={3000}
+        autoHideDuration={4000}
         onClose={() => setSnackbarOpen(false)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>
-          تغییرات با موفقیت ذخیره شد! ✅
+        <Alert onClose={() => setSnackbarOpen(false)} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage || 'تغییرات با موفقیت ذخیره شد! ✅'}
         </Alert>
       </Snackbar>
     </Container>
