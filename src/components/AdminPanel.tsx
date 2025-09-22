@@ -41,7 +41,7 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon
 } from '@mui/icons-material';
-import categoryService from '../services/categoryService';
+import categoryService, { Category as ApiCategory } from '../services/categoryService';
 
 interface Template {
   category: string;
@@ -58,16 +58,8 @@ interface BrandEssentials {
   response_guidelines: string[];
 }
 
-interface Category {
-  id: string;
-  name: string;
-  persian_name: string;
-  description?: string;
-  keywords: string[];
-  is_default: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
+// Using ApiCategory type from service
+type Category = ApiCategory;
 
 const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -115,11 +107,11 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('Error loading categories:', error);
       // Set fallback default categories
-      const fallbackCategories = [
-        { id: 'store_management', name: 'store_management', persian_name: 'مدیریت فروشگاه', keywords: [], is_default: true },
-        { id: 'product_listing', name: 'product_listing', persian_name: 'لیست محصولات', keywords: [], is_default: true },
-        { id: 'order_management', name: 'order_management', persian_name: 'مدیریت سفارش', keywords: [], is_default: true },
-        { id: 'payment_issues', name: 'payment_issues', persian_name: 'مشکلات پرداخت', keywords: [], is_default: true }
+      const fallbackCategories: Category[] = [
+        { id: 'store_management', name: 'store_management', persian_name: 'مدیریت فروشگاه', keywords: [], is_default: true, is_active: true },
+        { id: 'product_listing', name: 'product_listing', persian_name: 'لیست محصولات', keywords: [], is_default: true, is_active: true },
+        { id: 'order_management', name: 'order_management', persian_name: 'مدیریت سفارش', keywords: [], is_default: true, is_active: true },
+        { id: 'payment_issues', name: 'payment_issues', persian_name: 'مشکلات پرداخت', keywords: [], is_default: true, is_active: true }
       ];
       setCategories(fallbackCategories);
       if (!selectedCategory && fallbackCategories.length > 0) {

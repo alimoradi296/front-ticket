@@ -13,14 +13,16 @@ const getHeaders = () => ({
 
 export interface Category {
   id: string;
-  name: string;
+  name?: string;
   persian_name: string;
   description?: string;
   keywords: string[];
-  instructions: string;
-  qa_content: string;
-  is_active: boolean;
-  updated_at: string;
+  instructions?: string;
+  qa_content?: string;
+  is_active?: boolean;
+  is_default?: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CategoryInstructions {
