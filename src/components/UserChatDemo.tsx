@@ -63,26 +63,16 @@ const UserChatDemo: React.FC = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/categories`);
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
-        // Convert categories object to array format
-        let categoriesArray = [];
-        if (Array.isArray(data.categories)) {
-          categoriesArray = data.categories;
-        } else if (data.categories && typeof data.categories === 'object') {
-          // Convert object to array format
-          categoriesArray = Object.entries(data.categories).map(([id, category]: [string, any]) => ({
-            id,
-            name: id,
-            persian_name: category.persian_name,
-            description: category.description,
-            keywords: category.keywords || [],
-            is_default: category.is_default || false
-          }));
-        }
-        
-        setCategories(categoriesArray);
+        // Backend returns array directly now
+        setCategories(data);
       }
     } catch (error) {
       console.error('Error loading categories:', error);
@@ -126,15 +116,16 @@ const UserChatDemo: React.FC = () => {
     try {
       const startTime = Date.now();
       
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir/api'}/chat/message`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/chat`, {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           message: messageText,
           merchant_id: 'demo_founder',
-          conversation_id: 'founder_demo_' + Date.now()
+          conversation_id: undefined // Let server generate session ID
         })
       });
 
