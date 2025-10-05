@@ -132,9 +132,9 @@ export const categoryService = {
     const response = await fetch(`${API_BASE_URL}/api/v1/categories/${categoryId}/instructions`, {
       method: 'PUT',
       headers: getHeaders(),
-      body: instructions
+      body: JSON.stringify({ content: instructions })
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to update instructions: ${response.status} ${response.statusText}`);
     }

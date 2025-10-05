@@ -217,6 +217,27 @@ const AdminPanel: React.FC = () => {
   };
 
   const loadTemplate = useCallback(async (category: string) => {
+    // First check if we already have the data from categories
+    const categoryData = Array.isArray(categories) ? categories.find(c => c.id === category) : null;
+
+    if (categoryData && categoryData.instructions) {
+      // Use cached data from categories list
+      const template = {
+        category,
+        persian_name: categoryData.persian_name,
+        content: `${categoryData.instructions}\n\n`,
+        keywords: categoryData.keywords
+      };
+      setTemplates(prev => ({ ...prev, [category]: template }));
+      setEditingTemplate(template.content);
+      setEditingInstructions(categoryData.instructions || '');
+      setEditingQAPairs(categoryData.qa_pairs || []);
+      const qaText = categoryData.qa_pairs?.map((qa: QAPair) => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n') || '';
+      setEditingQA(qaText);
+      return; // Skip API call
+    }
+
+    // Only fetch if data not in cache
     try {
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories/${category}`, {
         headers: {
@@ -241,7 +262,6 @@ const AdminPanel: React.FC = () => {
         setEditingQA(qaText);
       } else {
         // Fallback data for demo
-        const categoryData = Array.isArray(categories) ? categories.find(c => c.id === category) : null;
         const fallbackInstructions = `# دستورالعمل‌های ${categoryData?.persian_name || category}\n\nاین بخش شامل دستورالعمل‌های کلی برای پاسخ‌دهی به ${categoryData?.persian_name || category} است.\n\n## رهنمودهای اصلی:\n- پاسخ‌ها باید واضح و مفید باشند\n- از زبان محترمانه و حرفه‌ای استفاده کنید\n- مراحل را به صورت مرحله‌بندی شده ارائه دهید`;
         const fallbackQAPairs: QAPair[] = [
           {
@@ -378,7 +398,7 @@ const AdminPanel: React.FC = () => {
           'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ instructions: editingInstructions })
+        body: JSON.stringify({ content: editingInstructions })
       });
 
       if (response.ok) {
