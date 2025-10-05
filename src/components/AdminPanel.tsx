@@ -374,11 +374,11 @@ const AdminPanel: React.FC = () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories/${selectedCategory}/instructions`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
-          'Content-Type': 'application/json' 
+          'Content-Type': 'application/json'
         },
-        body: editingInstructions
+        body: JSON.stringify({ instructions: editingInstructions })
       });
 
       if (response.ok) {
