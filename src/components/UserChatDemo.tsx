@@ -73,17 +73,12 @@ const UserChatDemo: React.FC = () => {
         const data = await response.json();
         // Backend returns array directly now
         setCategories(data);
+      } else {
+        setCategories([]);
       }
     } catch (error) {
       console.error('Error loading categories:', error);
-      // Set fallback default categories
-      const fallbackCategories = [
-        { id: 'store_management', name: 'store_management', persian_name: 'مدیریت فروشگاه', keywords: [], is_default: true },
-        { id: 'product_listing', name: 'product_listing', persian_name: 'لیست محصولات', keywords: [], is_default: true },
-        { id: 'order_management', name: 'order_management', persian_name: 'مدیریت سفارش', keywords: [], is_default: true },
-        { id: 'payment_issues', name: 'payment_issues', persian_name: 'مشکلات پرداخت', keywords: [], is_default: true }
-      ];
-      setCategories(fallbackCategories);
+      setCategories([]);
     }
   };
 

@@ -46,13 +46,6 @@ import {
 } from '@mui/icons-material';
 import categoryService, { Category as ApiCategory, QAPair, BrandEssentials } from '../services/categoryService';
 
-interface Template {
-  category: string;
-  persian_name: string;
-  content: string;
-  keywords: string[];
-}
-
 // Using BrandEssentials interface from service
 
 // Using ApiCategory type from service
@@ -60,12 +53,9 @@ type Category = ApiCategory;
 
 const AdminPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState('store_management');
-  const [templates, setTemplates] = useState<{ [key: string]: Template }>({});
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [brandEssentials, setBrandEssentials] = useState<BrandEssentials | null>(null);
-  const [editingTemplate, setEditingTemplate] = useState('');
   const [editingInstructions, setEditingInstructions] = useState('');
-  const [editingQA, setEditingQA] = useState('');
   const [editingQAPairs, setEditingQAPairs] = useState<QAPair[]>([]);
   const [editingBrand, setEditingBrand] = useState('');
   const [contentTab, setContentTab] = useState(0); // 0: Instructions, 1: QA
@@ -80,6 +70,9 @@ const AdminPanel: React.FC = () => {
     description: ''
   });
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
+  const [isLoadingBrand, setIsLoadingBrand] = useState(false);
 
   const defaultCategoryIcons: { [key: string]: React.ReactElement } = {
     'store_management': <StoreIcon />,
@@ -97,6 +90,7 @@ const AdminPanel: React.FC = () => {
   };
 
   const loadCategories = useCallback(async () => {
+    setIsLoadingCategories(true);
     try {
       const data = await categoryService.getCategories();
       setCategories(data);
@@ -107,22 +101,13 @@ const AdminPanel: React.FC = () => {
     } catch (error) {
       console.error('Error loading categories:', error);
       setApiConnectionError(true);
-      
-      // Set fallback default categories
-      const fallbackCategories: Category[] = [
-        { id: 'store_management', name: 'store_management', persian_name: 'مدیریت فروشگاه', keywords: [], qa_pairs: [], is_default: true, is_active: true },
-        { id: 'product_listing', name: 'product_listing', persian_name: 'لیست محصولات', keywords: [], qa_pairs: [], is_default: true, is_active: true },
-        { id: 'order_management', name: 'order_management', persian_name: 'مدیریت سفارش', keywords: [], qa_pairs: [], is_default: true, is_active: true },
-        { id: 'payment_issues', name: 'payment_issues', persian_name: 'مشکلات پرداخت', keywords: [], qa_pairs: [], is_default: true, is_active: true }
-      ];
-      setCategories(fallbackCategories);
-      if (!selectedCategory && fallbackCategories.length > 0) {
-        setSelectedCategory(fallbackCategories[0].id);
-      }
-      
-      setSnackbarMessage('⚠️ عدم اتصال به سرور - در حالت آفلاین کار می‌کنید');
-      setSnackbarSeverity('warning');
+      setCategories([]);
+
+      setSnackbarMessage('⚠️ عدم اتصال به سرور - لطفاً اتصال شبکه را بررسی کنید');
+      setSnackbarSeverity('error');
       setSnackbarOpen(true);
+    } finally {
+      setIsLoadingCategories(false);
     }
   }, [selectedCategory]);
 
@@ -217,23 +202,15 @@ const AdminPanel: React.FC = () => {
   };
 
   const loadTemplate = useCallback(async (category: string) => {
+    setIsLoadingTemplate(true);
     // First check if we already have the data from categories
     const categoryData = Array.isArray(categories) ? categories.find(c => c.id === category) : null;
 
     if (categoryData && categoryData.instructions) {
       // Use cached data from categories list
-      const template = {
-        category,
-        persian_name: categoryData.persian_name,
-        content: `${categoryData.instructions}\n\n`,
-        keywords: categoryData.keywords
-      };
-      setTemplates(prev => ({ ...prev, [category]: template }));
-      setEditingTemplate(template.content);
       setEditingInstructions(categoryData.instructions || '');
       setEditingQAPairs(categoryData.qa_pairs || []);
-      const qaText = categoryData.qa_pairs?.map((qa: QAPair) => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n') || '';
-      setEditingQA(qaText);
+      setIsLoadingTemplate(false);
       return; // Skip API call
     }
 
@@ -247,61 +224,22 @@ const AdminPanel: React.FC = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        const template = {
-          category,
-          persian_name: data.persian_name,
-          content: `${data.instructions}\n\n${data.qa_content}`,
-          keywords: data.keywords
-        };
-        setTemplates(prev => ({ ...prev, [category]: template }));
-        setEditingTemplate(template.content);
         setEditingInstructions(data.instructions || '');
         setEditingQAPairs(data.qa_pairs || []);
-        // Keep legacy QA content for backward compatibility
-        const qaText = data.qa_pairs?.map((qa: QAPair) => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n') || '';
-        setEditingQA(qaText);
       } else {
-        // Fallback data for demo
-        const fallbackInstructions = `# دستورالعمل‌های ${categoryData?.persian_name || category}\n\nاین بخش شامل دستورالعمل‌های کلی برای پاسخ‌دهی به ${categoryData?.persian_name || category} است.\n\n## رهنمودهای اصلی:\n- پاسخ‌ها باید واضح و مفید باشند\n- از زبان محترمانه و حرفه‌ای استفاده کنید\n- مراحل را به صورت مرحله‌بندی شده ارائه دهید`;
-        const fallbackQAPairs: QAPair[] = [
-          {
-            id: '1',
-            question: `چگونه می‌توانم در زمینه ${categoryData?.persian_name || category} کمک دریافت کنم؟`,
-            answer: `تیم پشتیبانی ایمالز آماده کمک به شما در زمینه ${categoryData?.persian_name || category} است.`,
-            keywords: [],
-            priority: 1,
-            usage_count: 0,
-            created_at: new Date().toISOString(),
-            is_active: true
-          },
-          {
-            id: '2',
-            question: `چه مواردی در این دسته‌بندی پوشش داده می‌شود؟`,
-            answer: `این دسته‌بندی تمام موضوعات مرتبط با ${categoryData?.persian_name || category} را شامل می‌شود.`,
-            keywords: [],
-            priority: 1,
-            usage_count: 0,
-            created_at: new Date().toISOString(),
-            is_active: true
-          }
-        ];
-        
-        const fallbackQA = fallbackQAPairs.map(qa => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n');
-        
-        const fallbackTemplate = {
-          category,
-          persian_name: categoryData?.persian_name || category,
-          content: `${fallbackInstructions}\n\n${fallbackQA}`,
-          keywords: categoryData?.keywords || ['نمونه', 'تست']
-        };
-        setTemplates(prev => ({ ...prev, [category]: fallbackTemplate }));
-        setEditingTemplate(fallbackTemplate.content);
-        setEditingInstructions(fallbackInstructions);
-        setEditingQAPairs(fallbackQAPairs);
-        setEditingQA(fallbackQA);
+        // Clear data on error - no fallback
+        setEditingInstructions('');
+        setEditingQAPairs([]);
+        setSnackbarMessage('خطا در بارگذاری اطلاعات موضوع');
+        setSnackbarSeverity('error');
+        setSnackbarOpen(true);
       }
     } catch (error) {
       console.error('Error loading template:', error);
+      setEditingInstructions('');
+      setEditingQAPairs([]);
+    } finally {
+      setIsLoadingTemplate(false);
     }
   }, [categories]);
 
@@ -326,9 +264,6 @@ const AdminPanel: React.FC = () => {
     try {
       const data = await categoryService.getCategoryQA(category);
       setEditingQAPairs(data.qa_pairs || []);
-      // Convert to text format for legacy editor
-      const qaText = data.qa_pairs?.map((qa: QAPair) => `Q: ${qa.question}\nA: ${qa.answer}`).join('\n\n') || '';
-      setEditingQA(qaText);
     } catch (error) {
       console.error('Error loading QA content:', error);
     }
@@ -353,32 +288,20 @@ const AdminPanel: React.FC = () => {
   }, [activeTab]);
 
   const loadBrandEssentials = async () => {
+    setIsLoadingBrand(true);
     try {
       const data = await categoryService.getBrandEssentials();
       setBrandEssentials(data);
       setEditingBrand(JSON.stringify(data, null, 2));
     } catch (error) {
       console.error('Error loading brand essentials:', error);
-      // Fallback data for demo
-      const fallbackBrand = {
-        operator_identity: "اپراتور پشتیبانی ایمالز",
-        marketplace_name: "ایمالز",
-        tone: "دوستانه و حرفه‌ای",
-        personality: "کمک‌کننده، صبور، و قابل اعتماد",
-        communication_style: "فارسی رسمی اما صمیمی",
-        expertise_level: "متخصص",
-        greeting_style: "گرم و دوستانه",
-        problem_solving_approach: "گام‌به‌گام و عملی",
-        language_formality: "رسمی اما صمیمی",
-        response_length: "متوسط",
-        brand_values: ["کیفیت", "سرعت", "اعتماد", "نوآوری"],
-        human_characteristics: ["صبور", "دقیق", "مهربان"],
-        special_instructions: ["همیشه با سلام شروع کن", "راه‌حل عملی ارائه ده", "اگر نمی‌دانی صادقانه بگو"],
-        version: 1,
-        updated_at: new Date().toISOString()
-      };
-      setBrandEssentials(fallbackBrand);
-      setEditingBrand(JSON.stringify(fallbackBrand, null, 2));
+      setBrandEssentials(null);
+      setEditingBrand('');
+      setSnackbarMessage('خطا در بارگذاری تنظیمات صدای برند');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    } finally {
+      setIsLoadingBrand(false);
     }
   };
 
@@ -466,37 +389,6 @@ const AdminPanel: React.FC = () => {
     }
   };
 
-  const saveTemplate = async () => {
-    setSaveStatus('saving');
-    try {
-      // Split content into instructions and QA sections for the new API
-      const sections = editingTemplate.split('\n\n');
-      const instructions = sections.slice(0, Math.ceil(sections.length / 2)).join('\n\n');
-      const qaContent = sections.slice(Math.ceil(sections.length / 2)).join('\n\n');
-      
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'https://back-ticket.nikflow.ir'}/api/v1/categories/${selectedCategory}/instructions`, {
-        method: 'PUT',
-        headers: { 
-          'Authorization': `Bearer ${process.env.REACT_APP_API_KEY || 'demo_api_key'}`,
-          'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify({ content: instructions })
-      });
-
-      if (response.ok) {
-        setSaveStatus('saved');
-        setSnackbarOpen(true);
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      } else {
-        throw new Error('Save failed');
-      }
-    } catch (error) {
-      console.error('Error saving template:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    }
-  };
-
   const saveBrandEssentials = async () => {
     setSaveStatus('saving');
     try {
@@ -515,12 +407,6 @@ const AdminPanel: React.FC = () => {
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
       setTimeout(() => setSaveStatus('idle'), 2000);
-    }
-  };
-
-  const resetTemplate = () => {
-    if (templates[selectedCategory]) {
-      setEditingTemplate(templates[selectedCategory].content);
     }
   };
 
@@ -649,35 +535,44 @@ const AdminPanel: React.FC = () => {
                   <Typography variant="h6" fontWeight="bold" gutterBottom>
                     موضوعات:
                   </Typography>
-                  <List dense>
-                    {Array.isArray(categories) && categories.map((category) => (
-                      <ListItem key={category.id} disablePadding>
-                        <ListItemButton
-                          selected={selectedCategory === category.id}
-                          onClick={() => setSelectedCategory(category.id)}
-                          sx={{
-                            borderRadius: 2,
-                            mb: 0.5,
-                            '&.Mui-selected': {
-                              bgcolor: 'primary.light',
-                              color: 'white',
-                              '&:hover': {
-                                bgcolor: 'primary.main'
+                  {isLoadingCategories ? (
+                    <Box sx={{ textAlign: 'center', py: 3 }}>
+                      <LinearProgress sx={{ mb: 1 }} />
+                      <Typography variant="caption" color="text.secondary">
+                        بارگذاری...
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <List dense>
+                      {Array.isArray(categories) && categories.map((category) => (
+                        <ListItem key={category.id} disablePadding>
+                          <ListItemButton
+                            selected={selectedCategory === category.id}
+                            onClick={() => setSelectedCategory(category.id)}
+                            sx={{
+                              borderRadius: 2,
+                              mb: 0.5,
+                              '&.Mui-selected': {
+                                bgcolor: 'primary.light',
+                                color: 'white',
+                                '&:hover': {
+                                  bgcolor: 'primary.main'
+                                }
                               }
-                            }
-                          }}
-                        >
-                          <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
-                            {getCategoryIcon(category.id)}
-                          </ListItemIcon>
-                          <ListItemText 
-                            primary={category.persian_name} 
-                            primaryTypographyProps={{ fontSize: '0.9rem' }}
-                          />
-                        </ListItemButton>
-                      </ListItem>
-                    ))}
-                  </List>
+                            }}
+                          >
+                            <ListItemIcon sx={{ color: 'inherit', minWidth: 40 }}>
+                              {getCategoryIcon(category.id)}
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={category.persian_name}
+                              primaryTypographyProps={{ fontSize: '0.9rem' }}
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
 
                   <Alert severity="info" sx={{ mt: 2 }}>
                     <Typography variant="caption" fontWeight="bold">
@@ -698,6 +593,15 @@ const AdminPanel: React.FC = () => {
                   <Typography variant="h6" fontWeight="bold" mb={2}>
                     ویرایش الگوی: {Array.isArray(categories) ? categories.find(c => c.id === selectedCategory)?.persian_name : selectedCategory}
                   </Typography>
+
+                  {isLoadingTemplate && (
+                    <Box sx={{ mb: 2 }}>
+                      <LinearProgress />
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
+                        در حال بارگذاری اطلاعات...
+                      </Typography>
+                    </Box>
+                  )}
 
                   {/* Content Type Tabs */}
                   <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
@@ -1008,10 +912,17 @@ const AdminPanel: React.FC = () => {
 
                     {/* Category List */}
                     <Stack spacing={2}>
-                      {!Array.isArray(categories) || categories.length === 0 ? (
+                      {isLoadingCategories ? (
+                        <Box sx={{ textAlign: 'center', py: 4 }}>
+                          <LinearProgress sx={{ mb: 2 }} />
+                          <Typography variant="body2" color="text.secondary">
+                            در حال بارگذاری موضوعات...
+                          </Typography>
+                        </Box>
+                      ) : !Array.isArray(categories) || categories.length === 0 ? (
                         <Alert severity="warning">
                           <Typography variant="body2">
-                            هیچ موضوع یافت نشد. در حال بارگذاری...
+                            هیچ موضوعی یافت نشد. از دکمه "افزودن موضوع جدید" برای ایجاد اولین موضوع استفاده کنید.
                           </Typography>
                         </Alert>
                       ) : (
@@ -1126,6 +1037,15 @@ const AdminPanel: React.FC = () => {
             <Grid container spacing={3}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Paper elevation={1} sx={{ p: 3 }}>
+                  {isLoadingBrand && (
+                    <Box sx={{ mb: 2 }}>
+                      <LinearProgress />
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center', mt: 1 }}>
+                        در حال بارگذاری تنظیمات صدای برند...
+                      </Typography>
+                    </Box>
+                  )}
+
                   <Stack direction="row" alignItems="center" justifyContent="space-between" mb={2}>
                     <Typography variant="h6" fontWeight="bold">
                       تنظیمات صدای برند:
