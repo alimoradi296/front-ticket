@@ -402,6 +402,13 @@ const AdminPanel: React.FC = () => {
       });
 
       if (response.ok) {
+        // Update cache to reflect saved changes
+        setCategories(prev => prev.map(cat =>
+          cat.id === selectedCategory
+            ? { ...cat, instructions: editingInstructions }
+            : cat
+        ));
+
         setSaveStatus('saved');
         setSnackbarMessage('دستورالعمل‌ها با موفقیت ذخیره شد! ✅');
         setSnackbarSeverity('success');
@@ -434,9 +441,16 @@ const AdminPanel: React.FC = () => {
         question: qa.question,
         answer: qa.answer
       }));
-      
+
       await categoryService.updateQAPairs(selectedCategory, qaPairRequests);
-      
+
+      // Update cache to reflect saved changes
+      setCategories(prev => prev.map(cat =>
+        cat.id === selectedCategory
+          ? { ...cat, qa_pairs: editingQAPairs }
+          : cat
+      ));
+
       setSaveStatus('saved');
       setSnackbarMessage('سوالات متداول با موفقیت ذخیره شد! ✅');
       setSnackbarSeverity('success');
